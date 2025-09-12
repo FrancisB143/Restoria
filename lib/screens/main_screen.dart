@@ -1,0 +1,112 @@
+import 'package:flutter/material.dart';
+import '../models/gallery_post_model.dart';
+import '../models/tutorial_model.dart';
+import 'gallery_screen.dart';
+import 'learn_screen.dart';
+import 'messages_screen.dart';
+import 'profile_screen.dart';
+
+class MainScreen extends StatefulWidget {
+  final List<Tutorial> tutorials;
+  final List<GalleryPost> galleryPosts;
+  final String currentUserName;
+  final Future<void> Function() onAddTutorial;
+  final Future<void> Function() onAddGalleryPost;
+
+  const MainScreen({
+    super.key,
+    required this.tutorials,
+    required this.galleryPosts,
+    required this.currentUserName,
+    required this.onAddTutorial,
+    required this.onAddGalleryPost,
+  });
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _selectedIndex = 0;
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      LearnScreen(
+        tutorials: widget.tutorials,
+        allPosts: widget.galleryPosts,
+        onAdd: widget.onAddTutorial,
+      ),
+      GalleryScreen(posts: widget.galleryPosts, onAdd: widget.onAddGalleryPost),
+      const MessagesScreen(),
+      ProfileScreen(
+        userName: widget.currentUserName,
+        allPosts: widget.galleryPosts,
+      ),
+    ];
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  Widget? _buildFloatingActionButton() {
+    if (_selectedIndex == 0) {
+      // Learn Screen
+      return FloatingActionButton(
+        onPressed: widget.onAddTutorial,
+        tooltip: 'Add Tutorial',
+        child: const Icon(Icons.add),
+      );
+    } else if (_selectedIndex == 1) {
+      // Gallery Screen
+      return FloatingActionButton(
+        onPressed: widget.onAddGalleryPost,
+        tooltip: 'Add Post',
+        child: const Icon(Icons.add_a_photo_outlined),
+      );
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(index: _selectedIndex, children: _pages),
+      floatingActionButton: _buildFloatingActionButton(),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.video_library_outlined),
+            activeIcon: Icon(Icons.video_library),
+            label: 'Tutorials',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_library_outlined),
+            activeIcon: Icon(Icons.photo_library),
+            label: 'Gallery',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            activeIcon: Icon(Icons.chat_bubble),
+            label: 'Messages',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
+      ),
+    );
+  }
+}
