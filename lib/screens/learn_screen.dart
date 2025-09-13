@@ -7,12 +7,14 @@ class LearnScreen extends StatefulWidget {
   final List<Tutorial> tutorials;
   final List<GalleryPost> allPosts;
   final Future<void> Function() onAdd;
+  final Function(Tutorial) onAddTutorial;
 
   const LearnScreen({
     super.key,
     required this.tutorials,
     required this.allPosts,
     required this.onAdd,
+    required this.onAddTutorial,
   });
 
   @override
@@ -58,6 +60,310 @@ class _LearnScreenState extends State<LearnScreen> {
         return titleMatch && categoryMatch;
       }).toList();
     });
+  }
+
+  String _getCreatorAvatar(String creatorName) {
+    // Map creator names to available asset images
+    final avatarMap = {
+      'Alex Martinez': 'assets/images/lamp.png',
+      'Sarah Johnson': 'assets/images/flashlight.png',
+      'Mike Chen': 'assets/images/toaster_bookends.jpg',
+      'Emma Wilson': 'assets/images/cable_organize.jpg',
+      'David Kim': 'assets/images/mouse_planter.jpg',
+      'Lisa Anderson': 'assets/images/project1.jpg',
+      'Ryan Taylor': 'assets/images/project2.jpg',
+      'Sophie Brown': 'assets/images/project3.jpg',
+    };
+
+    return avatarMap[creatorName] ?? 'assets/images/ourLogo.png';
+  }
+
+  void _showUploadTutorialBottomSheet(BuildContext context) {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String selectedCategory = 'Lighting';
+    String selectedImagePath = 'assets/images/lamp.png';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Upload Tutorial',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        _saveTutorial(
+                          context,
+                          titleController.text,
+                          descriptionController.text,
+                          selectedCategory,
+                          selectedImagePath,
+                        );
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ),
+              // Form content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Image selection
+                      Container(
+                        width: double.infinity,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            selectedImagePath,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: () {
+                          _showImageSelector(context, (imagePath) {
+                            setModalState(() {
+                              selectedImagePath = imagePath;
+                            });
+                          });
+                        },
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Change Image'),
+                      ),
+                      const SizedBox(height: 16),
+                      // Title field
+                      const Text(
+                        'Tutorial Title',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: titleController,
+                        decoration: InputDecoration(
+                          hintText: 'Enter tutorial title...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Category selection
+                      const Text(
+                        'Category',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: selectedCategory,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        items: ['Lighting', 'Clocks', 'Cables', 'Furnitures']
+                            .map(
+                              (category) => DropdownMenuItem(
+                                value: category,
+                                child: Text(category),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setModalState(() {
+                            selectedCategory = value!;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      // Description field
+                      const Text(
+                        'Description',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: descriptionController,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: 'Describe your tutorial...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showImageSelector(
+    BuildContext context,
+    Function(String) onImageSelected,
+  ) {
+    final availableImages = [
+      'assets/images/lamp.png',
+      'assets/images/flashlight.png',
+      'assets/images/toaster_bookends.jpg',
+      'assets/images/cable_organize.jpg',
+      'assets/images/mouse_planter.jpg',
+      'assets/images/project1.jpg',
+      'assets/images/project2.jpg',
+      'assets/images/project3.jpg',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Select Image',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: availableImages.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    onImageSelected(availableImages[index]);
+                    Navigator.pop(context);
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      availableImages[index],
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _saveTutorial(
+    BuildContext context,
+    String title,
+    String description,
+    String category,
+    String imagePath,
+  ) {
+    if (title.isEmpty || description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Create new tutorial object
+    final newTutorial = Tutorial(
+      title: title,
+      eWasteType: category,
+      creatorName: 'You',
+      creatorAvatarUrl: 'assets/images/ourLogo.png',
+      imageUrl: imagePath,
+      videoUrl: 'assets/videos/flashlight_plastic.mp4', // Default video
+      description: description,
+      likeCount: 0,
+      comments: [],
+    );
+
+    // Add to tutorials list through parent callback
+    widget.onAddTutorial(newTutorial);
+
+    // Refresh the filtered tutorials to show the new tutorial immediately
+    setState(() {
+      _filteredTutorials = [newTutorial, ..._filteredTutorials];
+    });
+
+    // Close the modal
+    Navigator.pop(context);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Tutorial "$title" uploaded successfully!'),
+        backgroundColor: Colors.green,
+        action: SnackBarAction(
+          label: 'View',
+          textColor: Colors.white,
+          onPressed: () {
+            // The tutorial will appear in the list automatically
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildTutorialImage(String imageUrl) {
@@ -132,68 +438,155 @@ class _LearnScreenState extends State<LearnScreen> {
   Widget _buildFeaturedTutorialCard(BuildContext context, Tutorial tutorial) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TutorialDetailScreen(
-                tutorial: tutorial,
-                allPosts: widget.allPosts,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TutorialDetailScreen(
+                  tutorial: tutorial,
+                  allPosts: widget.allPosts,
+                ),
               ),
-            ),
-          );
-        },
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 80,
-                height: 80,
-                child: _buildTutorialImage(tutorial.imageUrl),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tutorial Image - Full width at top
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 160,
+                  child: _buildTutorialImage(tutorial.imageUrl),
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tutorial.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+              // Content section
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Category and Time row
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            tutorial.eWasteType,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '• 45 min',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                        ),
+                      ],
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    tutorial.eWasteType,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.green.shade600,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 10),
+                    // Tutorial Title
+                    Text(
+                      tutorial.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'by ${tutorial.creatorName}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
+                    const SizedBox(height: 6),
+                    // Description
+                    Text(
+                      tutorial.description,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey.shade600,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.star, size: 16, color: Colors.amber),
-                      const SizedBox(width: 4),
-                      Text('4.8', style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    // Creator and Rating row
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.grey.shade200,
+                          backgroundImage: AssetImage(
+                            _getCreatorAvatar(tutorial.creatorName),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            tutorial.creatorName,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 14,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Rating
+                        Row(
+                          children: [
+                            Icon(Icons.star, size: 16, color: Colors.amber),
+                            const SizedBox(width: 4),
+                            Text(
+                              '4.8',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -454,6 +847,88 @@ class _LearnScreenState extends State<LearnScreen> {
                   ],
                 ),
               ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Upload Tutorials Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade50, Colors.blue.shade100],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.upload_outlined,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Share Your Tutorial',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade800,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Help others learn by sharing your e-waste projects',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: Colors.blue.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _showUploadTutorialBottomSheet(context);
+                      },
+                      icon: const Icon(Icons.add_circle_outline),
+                      label: const Text('Upload Tutorial'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 

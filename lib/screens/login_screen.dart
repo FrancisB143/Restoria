@@ -50,7 +50,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth <= 375; // iPhone SE width
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -68,281 +69,268 @@ class _LoginScreenState extends State<LoginScreen>
             opacity: _fadeAnimation,
             child: SlideTransition(
               position: _slideAnimation,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: Column(
-                        children: [
-                          // Top Section with Logo and Branding
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 40.0,
-                              vertical: 20.0,
+              child: Column(
+                children: [
+                  // Top Section with Logo and Branding
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 24.0 : 40.0,
+                      vertical: isSmallScreen ? 12.0 : 20.0,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(height: isSmallScreen ? 10 : 20),
+                        // Logo Container
+                        Container(
+                          width: isSmallScreen ? 80 : 120,
+                          height: isSmallScreen ? 80 : 120,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(
+                              isSmallScreen ? 20 : 30,
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const SizedBox(height: 20),
-                                // Logo Container
-                                Container(
-                                  width: 120,
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(30),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        spreadRadius: 0,
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(20.0),
-                                    child: Image.asset(
-                                      'assets/images/ourLogo.png',
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                // App Name
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    'Restoria',
-                                    style: textTheme.headlineMedium?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    'Sustainable Innovation Hub',
-                                    style: textTheme.bodyLarge?.copyWith(
-                                      color: Colors.white.withOpacity(0.9),
-                                      fontWeight: FontWeight.w300,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                              ],
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                spreadRadius: 0,
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(
+                              isSmallScreen ? 12.0 : 20.0,
+                            ),
+                            child: Image.asset(
+                              'assets/images/ourLogo.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
+                        ),
+                        SizedBox(height: isSmallScreen ? 16 : 24),
+                        // App Name
+                        Text(
+                          'Restoria',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                            fontSize: isSmallScreen ? 24 : 28,
+                          ),
+                        ),
+                        SizedBox(height: isSmallScreen ? 4 : 8),
+                        Text(
+                          'Sustainable Innovation Hub',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w300,
+                            fontSize: isSmallScreen ? 14 : 16,
+                          ),
+                        ),
+                        SizedBox(height: isSmallScreen ? 12 : 20),
+                      ],
+                    ),
+                  ),
 
-                          // Bottom Section with Login Options
-                          Container(
-                            width: double.infinity,
-                            constraints: BoxConstraints(
-                              minHeight:
-                                  MediaQuery.of(context).size.height * 0.4,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(30),
-                                topRight: Radius.circular(30),
+                  // Bottom Section with Login Options - Extended to bottom
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(30),
+                          topRight: Radius.circular(30),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallScreen ? 20.0 : 28.0,
+                          vertical: isSmallScreen ? 16.0 : 20.0,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(height: isSmallScreen ? 8 : 12),
+                            // Welcome Text
+                            Text(
+                              'Welcome Back!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                                fontSize: isSmallScreen ? 20 : 24,
                               ),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 28.0,
-                                vertical: 20.0,
+                            SizedBox(height: isSmallScreen ? 4 : 6),
+                            Text(
+                              'Sign in to continue your sustainable journey',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                height: 1.4,
+                                fontSize: isSmallScreen ? 14 : 16,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const SizedBox(height: 12),
-                                  // Welcome Text
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      'Welcome Back!',
-                                      textAlign: TextAlign.center,
-                                      style: textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey[800],
-                                      ),
-                                    ),
+                            ),
+                            SizedBox(height: isSmallScreen ? 20 : 24),
+
+                            // Google Sign In Button - Bigger
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    spreadRadius: 0,
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Sign in to continue your sustainable journey',
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      color: Colors.grey[600],
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-
-                                  // Google Sign In Button
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.grey.withOpacity(0.1),
-                                          spreadRadius: 0,
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ElevatedButton.icon(
-                                      icon: Image.asset(
-                                        'assets/images/google_logo.png',
-                                        height: 20.0,
-                                        width: 20.0,
-                                      ),
-                                      label: const Text(
-                                        'Continue with Google',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: Colors.grey[700],
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          side: BorderSide(
-                                            color: Colors.grey.shade200,
-                                          ),
-                                        ),
-                                        textStyle: textTheme.bodyLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                      onPressed: () =>
-                                          _handleGoogleSignIn(context),
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 16),
-
-                                  // Divider
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Divider(color: Colors.grey[300]),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        child: Text(
-                                          'or',
-                                          style: TextStyle(
-                                            color: Colors.grey[500],
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Divider(color: Colors.grey[300]),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 16),
-
-                                  // Guest Button
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF4CAF50),
-                                          Color(0xFF66BB6A),
-                                        ],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(
-                                            0xFF4CAF50,
-                                          ).withOpacity(0.2),
-                                          spreadRadius: 0,
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        textStyle: textTheme.bodyLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                      onPressed: () {
-                                        Navigator.pushReplacementNamed(
-                                          context,
-                                          '/main',
-                                        );
-                                      },
-                                      child: const Text(
-                                        'Continue as Guest',
-                                        style: TextStyle(color: Colors.white),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 20),
-
-                                  // Footer Text
-                                  Text(
-                                    'By continuing, you agree to our Terms of Service\nand Privacy Policy',
-                                    textAlign: TextAlign.center,
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: Colors.grey[500],
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
                                 ],
                               ),
+                              child: ElevatedButton.icon(
+                                icon: Image.asset(
+                                  'assets/images/google_logo.png',
+                                  height: isSmallScreen ? 18.0 : 20.0,
+                                  width: isSmallScreen ? 18.0 : 20.0,
+                                ),
+                                label: Text(
+                                  'Continue with Google',
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 15 : 16,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Colors.grey[700],
+                                  elevation: 0,
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: isSmallScreen ? 16 : 18,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: isSmallScreen ? 15 : 16,
+                                  ),
+                                ),
+                                onPressed: () => _handleGoogleSignIn(context),
+                              ),
                             ),
-                          ),
-                        ],
+
+                            SizedBox(height: isSmallScreen ? 14 : 16),
+
+                            // Divider
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(color: Colors.grey[300]),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Text(
+                                    'or',
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: isSmallScreen ? 13 : 14,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(color: Colors.grey[300]),
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: isSmallScreen ? 14 : 16),
+
+                            // Guest Button - Bigger
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF4CAF50),
+                                    Color(0xFF66BB6A),
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF4CAF50,
+                                    ).withOpacity(0.2),
+                                    spreadRadius: 0,
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  elevation: 0,
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: isSmallScreen ? 16 : 18,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: isSmallScreen ? 15 : 16,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  Navigator.pushReplacementNamed(
+                                    context,
+                                    '/main',
+                                  );
+                                },
+                                child: Text(
+                                  'Continue as Guest',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: isSmallScreen ? 15 : 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const Spacer(),
+
+                            // Footer Text
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: isSmallScreen ? 12 : 20,
+                              ),
+                              child: Text(
+                                'By continuing, you agree to our Terms of Service\nand Privacy Policy',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  height: 1.4,
+                                  fontSize: isSmallScreen ? 11 : 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
           ),

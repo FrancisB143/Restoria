@@ -7,8 +7,14 @@ import 'gallery_detail_screen.dart';
 class GalleryScreen extends StatelessWidget {
   final List<GalleryPost> posts;
   final Future<void> Function() onAdd;
+  final Function(GalleryPost)? onAddPost;
 
-  const GalleryScreen({super.key, required this.posts, required this.onAdd});
+  const GalleryScreen({
+    super.key,
+    required this.posts,
+    required this.onAdd,
+    this.onAddPost,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +98,7 @@ class GalleryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: onAdd,
+                    onPressed: () => _showNewProjectDialog(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.green.shade600,
@@ -126,7 +132,7 @@ class GalleryScreen extends StatelessWidget {
                     icon: Icons.add,
                     label: 'New Project',
                     subtitle: 'Start a new\ncreation',
-                    onTap: onAdd,
+                    onTap: () => _showNewProjectDialog(context),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -136,7 +142,7 @@ class GalleryScreen extends StatelessWidget {
                     icon: Icons.photo_library_outlined,
                     label: 'Gallery',
                     subtitle: 'Browse community\ncreations',
-                    onTap: () {},
+                    onTap: () => _showGalleryOptions(context),
                   ),
                 ),
               ],
@@ -437,11 +443,11 @@ class GalleryScreen extends StatelessWidget {
   }
 
   Widget _buildSampleCommunityPosts(BuildContext context) {
-    // Sample posts using asset images
+    // Sample posts using only existing asset images
     final samplePosts = [
       {
         'userName': 'Sarah Chen',
-        'profilePicture': 'assets/images/project1.jpg',
+        'profilePicture': null, // Use avatar color instead
         'imageUrl': 'assets/images/lamp.png',
         'description':
             'LED Art Display from old motherboards! Took me 3 days but totally worth it 💡',
@@ -451,7 +457,7 @@ class GalleryScreen extends StatelessWidget {
       },
       {
         'userName': 'Mike Rodriguez',
-        'profilePicture': 'assets/images/project2.jpg',
+        'profilePicture': null, // Use avatar color instead
         'imageUrl': 'assets/images/flashlight.png',
         'description':
             'Robot buddy made from old phones and cables! Kids love it 🤖',
@@ -461,7 +467,7 @@ class GalleryScreen extends StatelessWidget {
       },
       {
         'userName': 'Emma Wilson',
-        'profilePicture': 'assets/images/project3.jpg',
+        'profilePicture': null, // Use avatar color instead
         'imageUrl': 'assets/images/toaster_bookends.jpg',
         'description':
             'Vintage toaster transformed into unique bookends for my study room',
@@ -471,7 +477,7 @@ class GalleryScreen extends StatelessWidget {
       },
       {
         'userName': 'Alex Kim',
-        'profilePicture': 'assets/images/harddriveclock.jpg',
+        'profilePicture': null, // Use avatar color instead
         'imageUrl': 'assets/images/cable_organize.jpg',
         'description':
             'Cable management organizer made from old hard drive parts',
@@ -481,7 +487,7 @@ class GalleryScreen extends StatelessWidget {
       },
       {
         'userName': 'Lisa Zhang',
-        'profilePicture': 'assets/images/ourLogo.png',
+        'profilePicture': null, // Use avatar color instead
         'imageUrl': 'assets/images/mouse_planter.jpg',
         'description':
             'Mini succulent planter from recycled computer mouse - so cute! 🌱',
@@ -652,6 +658,309 @@ class GalleryScreen extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNewProjectDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String selectedImagePath = 'assets/images/lamp.png';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'New Project',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        _saveNewProject(
+                          context,
+                          titleController.text,
+                          descriptionController.text,
+                          selectedImagePath,
+                        );
+                      },
+                      child: const Text('Share'),
+                    ),
+                  ],
+                ),
+              ),
+              // Form content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Image selection
+                      Container(
+                        width: double.infinity,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            selectedImagePath,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: () {
+                          _showProjectImageSelector(context, (imagePath) {
+                            setModalState(() {
+                              selectedImagePath = imagePath;
+                            });
+                          });
+                        },
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Change Image'),
+                      ),
+                      const SizedBox(height: 16),
+                      // Title field
+                      const Text(
+                        'Project Title',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: titleController,
+                        decoration: InputDecoration(
+                          hintText: 'What did you create?',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Description field
+                      const Text(
+                        'Description',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: descriptionController,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: 'Tell us about your creation process...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showProjectImageSelector(
+    BuildContext context,
+    Function(String) onImageSelected,
+  ) {
+    final availableImages = [
+      'assets/images/lamp.png',
+      'assets/images/flashlight.png',
+      'assets/images/toaster_bookends.jpg',
+      'assets/images/cable_organize.jpg',
+      'assets/images/mouse_planter.jpg',
+      'assets/images/harddriveclock.jpg',
+      'assets/images/ourLogo.png',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Select Project Image',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: availableImages.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    onImageSelected(availableImages[index]);
+                    Navigator.pop(context);
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      availableImages[index],
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _saveNewProject(
+    BuildContext context,
+    String title,
+    String description,
+    String imagePath,
+  ) {
+    if (title.isEmpty || description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Create new gallery post
+    final newPost = GalleryPost(
+      userName: 'You',
+      imageUrl: imagePath,
+      description: description,
+      likeCount: 0,
+    );
+
+    // Add to posts list if callback is available
+    if (onAddPost != null) {
+      onAddPost!(newPost);
+    }
+
+    // Close the modal
+    Navigator.pop(context);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Project "$title" shared successfully!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _showGalleryOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Gallery Options',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.grid_view, color: Colors.green),
+              title: const Text('View All Projects'),
+              subtitle: const Text('Browse all community creations'),
+              onTap: () {
+                Navigator.pop(context);
+                // Scroll to community gallery section
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Scrolled to Community Gallery!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.favorite, color: Colors.red),
+              title: const Text('Liked Projects'),
+              subtitle: const Text('View your liked creations'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Liked Projects feature coming soon!'),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person, color: Colors.purple),
+              title: const Text('My Projects'),
+              subtitle: const Text('View your own creations'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('My Projects feature coming soon!'),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
+              },
             ),
           ],
         ),

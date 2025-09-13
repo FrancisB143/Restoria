@@ -30,6 +30,20 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   late final List<Widget> _pages;
 
+  void _addTutorialDirectly(Tutorial tutorial) {
+    // Add tutorial to local state immediately for instant UI update
+    setState(() {
+      widget.tutorials.insert(0, tutorial);
+    });
+  }
+
+  void _addGalleryPostDirectly(GalleryPost post) {
+    // Add gallery post to local state immediately for instant UI update
+    setState(() {
+      widget.galleryPosts.insert(0, post);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -38,8 +52,13 @@ class _MainScreenState extends State<MainScreen> {
         tutorials: widget.tutorials,
         allPosts: widget.galleryPosts,
         onAdd: widget.onAddTutorial,
+        onAddTutorial: _addTutorialDirectly,
       ),
-      GalleryScreen(posts: widget.galleryPosts, onAdd: widget.onAddGalleryPost),
+      GalleryScreen(
+        posts: widget.galleryPosts,
+        onAdd: widget.onAddGalleryPost,
+        onAddPost: _addGalleryPostDirectly,
+      ),
       const MessagesScreen(),
       ProfileScreen(
         userName: widget.currentUserName,
@@ -54,30 +73,10 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  Widget? _buildFloatingActionButton() {
-    if (_selectedIndex == 0) {
-      // Learn Screen
-      return FloatingActionButton(
-        onPressed: widget.onAddTutorial,
-        tooltip: 'Add Tutorial',
-        child: const Icon(Icons.add),
-      );
-    } else if (_selectedIndex == 1) {
-      // Gallery Screen
-      return FloatingActionButton(
-        onPressed: widget.onAddGalleryPost,
-        tooltip: 'Add Post',
-        child: const Icon(Icons.add_a_photo_outlined),
-      );
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
-      floatingActionButton: _buildFloatingActionButton(),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
