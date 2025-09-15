@@ -1,4 +1,3 @@
-// lib/screens/gallery_detail_screen.dart
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +14,6 @@ class GalleryDetailScreen extends StatefulWidget {
 }
 
 class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
-  // Local state to manage likes for this specific post
   late int _currentLikeCount;
   late bool _isLiked;
   final TextEditingController _commentController = TextEditingController();
@@ -26,27 +24,37 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize the local state from the post data passed to the screen
     _currentLikeCount = widget.post.likeCount;
-    _isLiked =
-        false; // In a real app, you'd check if the user has already liked this
+    _isLiked = false;
 
-    // Initialize some sample comments
     _comments = [
       Comment(
-        userName: 'Emma Thompson',
-        avatarAsset: 'assets/images/project1.jpg',
-        text: 'This is amazing! How long did it take you to make?',
+        userName: 'Liam',
+        avatarAsset: 'assets/images/avatar1.png',
+        text: 'This is so creative! I love the use of recycled materials.',
+        timestamp: '2d',
       ),
       Comment(
-        userName: 'David Kim',
-        avatarAsset: 'assets/images/project2.jpg',
-        text: 'Great use of e-waste! Very creative approach 👏',
+        userName: 'Sophia',
+        avatarAsset: 'assets/images/avatar2.png',
+        text:
+            'Amazing work! It\'s inspiring to see how e-waste can be transformed into something beautiful.',
+        timestamp: '1d',
+        replies: [
+          Comment(
+            userName: widget.post.userName,
+            avatarAsset: 'assets/images/ourLogo.png',
+            text: 'Thank you! Glad you liked it.',
+            timestamp: '1d',
+          ),
+        ],
       ),
       Comment(
-        userName: 'Maria Garcia',
-        avatarAsset: 'assets/images/project3.jpg',
-        text: 'I want to try making something similar. Do you have a tutorial?',
+        userName: 'Ethan',
+        avatarAsset: 'assets/images/avatar1.png',
+        text:
+            'I\'m impressed by the craftsmanship. This piece really stands out.',
+        timestamp: '1d',
       ),
     ];
   }
@@ -70,18 +78,22 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     });
   }
 
+  // MODIFIED: This now handles both comments and replies
   void _addCommentOrReply() {
     if (_commentController.text.isEmpty) return;
     final newComment = Comment(
       userName: 'You',
       avatarAsset: 'assets/images/ourLogo.png',
       text: _commentController.text,
+      timestamp: 'Just now',
     );
     setState(() {
       if (_replyingToComment == null) {
-        _comments.insert(0, newComment);
+        // Add a new top-level comment
+        _comments.add(newComment);
       } else {
-        _replyingToComment!.replies.insert(0, newComment);
+        // Add a reply to an existing comment
+        _replyingToComment!.replies.add(newComment);
         _replyingToComment = null;
       }
       _commentController.clear();
@@ -89,6 +101,7 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     });
   }
 
+  // RESTORED: Functions to handle the reply state
   void _startReply(Comment comment) {
     setState(() {
       _replyingToComment = comment;
@@ -103,83 +116,100 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     });
   }
 
-  Widget _buildImage(String imageUrl) {
-    // Check if it's an asset image
+  Widget _buildPostImage(String imageUrl) {
+    const double imageHeight = 300.0;
+    Widget image;
+
     if (imageUrl.startsWith('assets/')) {
-      return Image.asset(
-        imageUrl,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: 300,
-            color: Colors.grey[300],
-            child: Center(
-              child: Icon(
-                Icons.broken_image,
-                size: 100,
-                color: Colors.grey[600],
-              ),
-            ),
-          );
-        },
-      );
+      image = Image.asset(imageUrl, fit: BoxFit.cover);
+    } else if (kIsWeb) {
+      image = Image.network(imageUrl, fit: BoxFit.cover);
     } else {
-      // Handle network or file images
-      return kIsWeb
-          ? Image.network(imageUrl, width: double.infinity, fit: BoxFit.cover)
-          : Image.file(
-              File(imageUrl),
-              width: double.infinity,
-              fit: BoxFit.cover,
-            );
+      image = Image.file(File(imageUrl), fit: BoxFit.cover);
     }
-  }
 
-  ImageProvider? _getCreatorAvatar() {
-    // Try to match creator with sample data for profile pictures
-    final creatorAvatars = {
-      'Sarah Chen': 'assets/images/project1.jpg',
-      'Mike Rodriguez': 'assets/images/project2.jpg',
-      'Emma Wilson': 'assets/images/project3.jpg',
-      'Alex Kim': 'assets/images/harddriveclock.jpg',
-      'Lisa Zhang': 'assets/images/ourLogo.png',
-    };
-
-    final avatarPath = creatorAvatars[widget.post.userName];
-    if (avatarPath != null) {
-      return AssetImage(avatarPath);
-    }
-    return null;
-  }
-
-  Widget _buildActionBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            IconButton(
-              icon: Icon(
-                _isLiked ? Icons.favorite : Icons.favorite_border,
-                color: _isLiked ? Colors.redAccent : Colors.grey,
-              ),
-              onPressed: _toggleLike,
-            ),
-            Text('$_currentLikeCount likes'),
-          ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12.0),
+        child: Container(
+          height: imageHeight,
+          width: double.infinity,
+          color: Colors.grey.shade200,
+          child: image,
         ),
-        Row(
-          children: [
-            const Icon(Icons.comment_outlined, color: Colors.grey),
-            const SizedBox(width: 8),
-            Text('${_comments.length} comments'),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
+  Widget _buildActionBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: _toggleLike,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  Icon(
+                    _isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: _isLiked ? Colors.redAccent : Colors.black54,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _currentLikeCount.toString(),
+                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.chat_bubble_outline,
+                  color: Colors.black54,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _comments.length.toString(),
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Share action triggered!')),
+              );
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Icon(
+                Icons.share_outlined,
+                color: Colors.black54,
+                size: 24,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // This function now recursively builds comment trees
   Widget _buildCommentTree(List<Comment> comments, {int depth = 0}) {
     return ListView.builder(
       shrinkWrap: true,
@@ -198,9 +228,10 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     );
   }
 
+  // RESTORED: Like and Reply buttons are back
   Widget _buildCommentWidget(Comment comment, int depth) {
     return Padding(
-      padding: EdgeInsets.only(left: 16.0 * depth, top: 8, bottom: 8),
+      padding: EdgeInsets.only(left: 24.0 * depth, top: 8, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -216,38 +247,64 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      comment.userName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        Text(
+                          comment.userName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          comment.timestamp,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 4),
                     Text(comment.text),
                   ],
                 ),
               ),
             ],
           ),
+          // Like and Reply buttons row
           Row(
             children: [
-              const SizedBox(width: 52),
-              IconButton(
-                icon: Icon(
-                  comment.isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: comment.isLiked ? Colors.redAccent : Colors.grey,
-                  size: 18,
-                ),
-                onPressed: () {
+              SizedBox(width: 52.0 * (depth > 0 ? 0.8 : 1)), // Indent buttons
+              InkWell(
+                onTap: () {
                   setState(() {
                     comment.isLiked = !comment.isLiked;
                     comment.isLiked ? comment.likeCount++ : comment.likeCount--;
                   });
                 },
-              ),
-              if (comment.likeCount > 0)
-                Text(
-                  comment.likeCount.toString(),
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                child: Row(
+                  children: [
+                    Icon(
+                      comment.isLiked ? Icons.favorite : Icons.favorite_border,
+                      color: comment.isLiked ? Colors.redAccent : Colors.grey,
+                      size: 18,
+                    ),
+                    if (comment.likeCount > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4.0),
+                        child: Text(
+                          comment.likeCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              TextButton(
+              ),
+              const SizedBox(width: 16),
+              InkWell(
+                onTap: () => _startReply(comment),
                 child: const Text(
                   'Reply',
                   style: TextStyle(
@@ -255,7 +312,6 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                onPressed: () => _startReply(comment),
               ),
             ],
           ),
@@ -266,33 +322,46 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
 
   Widget _buildCommentInputArea() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: EdgeInsets.only(
+        left: 16.0,
+        right: 8.0,
+        top: 8.0,
+        bottom: MediaQuery.of(context).padding.bottom + 8.0,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
           BoxShadow(
             offset: const Offset(0, -1),
             blurRadius: 4,
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.08),
           ),
         ],
       ),
+      // Column to show the "Replying to..." text
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_replyingToComment != null)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Replying to ${_replyingToComment!.userName}',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 16),
-                  onPressed: _cancelReply,
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 8.0,
+                right: 8.0,
+                bottom: 4.0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Replying to ${_replyingToComment!.userName}',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: _cancelReply,
+                  ),
+                ],
+              ),
             ),
           Row(
             children: [
@@ -305,12 +374,13 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
                         ? 'Add a comment...'
                         : 'Add a reply...',
                     filled: true,
-                    fillColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    fillColor: Colors.grey.shade200,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30.0),
                       borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
                     ),
                   ),
                 ),
@@ -318,6 +388,7 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
               IconButton(
                 icon: const Icon(Icons.send),
                 onPressed: _addCommentOrReply,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ],
           ),
@@ -329,126 +400,82 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Single ScrollView containing everything
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status bar spacing
-                SizedBox(height: MediaQuery.of(context).padding.top),
-                // Image that scrolls with content (starts from top)
-                SizedBox(
-                  width: double.infinity,
-                  height: MediaQuery.of(
-                    context,
-                  ).size.width, // Square aspect ratio
-                  child: _buildImage(widget.post.imageUrl),
-                ),
-
-                // Content section
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: const [],
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        foregroundColor: Colors.black87,
+      ),
+      bottomNavigationBar: _buildCommentInputArea(),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildPostImage(widget.post.imageUrl),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 16.0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      // Creator profile section (clickable)
-                      InkWell(
-                        onTap: () {
-                          // Navigate to creator profile
-                          // You can implement this navigation later
-                          print('Navigate to ${widget.post.userName} profile');
-                        },
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Colors.blue,
-                              backgroundImage: _getCreatorAvatar(),
-                              child: _getCreatorAvatar() == null
-                                  ? Text(
-                                      widget.post.userName[0].toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              widget.post.userName,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.teal.shade100,
+                        child: Text(
+                          widget.post.userName.isNotEmpty
+                              ? widget.post.userName[0]
+                              : 'U',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal.shade800,
+                          ),
                         ),
                       ),
-
-                      const SizedBox(height: 16),
-
-                      // Description
+                      const SizedBox(width: 12),
                       Text(
-                        widget.post.description,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        maxLines: null, // Allow multiple lines
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Action bar with like and comment
-                      _buildActionBar(),
-
-                      const Divider(height: 32),
-
-                      // Comments section
-                      Text(
-                        'Comments (${_comments.length})',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        widget.post.userName,
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
-                      const SizedBox(height: 16),
-
-                      _buildCommentTree(_comments),
-
-                      // Add bottom padding for comment input area
-                      const SizedBox(height: 80),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // Fixed positioned back button
-          Positioned(
-            top:
-                MediaQuery.of(context).padding.top +
-                8, // Account for status bar
-            left: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.post.description,
+                    style: const TextStyle(fontSize: 15, height: 1.4),
+                  ),
+                ],
               ),
             ),
-          ),
-
-          // Fixed positioned comment input area at bottom
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildCommentInputArea(),
-          ),
-        ],
+            _buildActionBar(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Comments',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  // This now handles nested comments
+                  _buildCommentTree(_comments),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -173,23 +173,21 @@ class GalleryScreen extends StatelessWidget {
             ),
           ),
 
-          // Posts List
-          posts.isEmpty
-              ? _buildSampleCommunityPosts(
-                  context,
-                ) // Show sample posts when empty
-              : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  itemCount: posts.length,
-                  itemBuilder: (context, index) {
-                    final post = posts[index];
-                    return _buildCommunityPost(context, post, index);
-                  },
-                ),
+          // Sample Posts
+          _buildSampleCommunityPosts(context),
 
-          const SizedBox(height: 20),
+          // User's Posts (if any)
+          // REMOVED "My Creations" header
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              final post = posts[index];
+              return _buildCommunityPost(context, post, index);
+            },
+          ),
         ],
       ),
     );
@@ -247,7 +245,6 @@ class GalleryScreen extends StatelessWidget {
     GalleryPost post,
     int index,
   ) {
-    // Generate mock time ago data
     final timeAgo = _getTimeAgo(index);
 
     return GestureDetector(
@@ -319,36 +316,47 @@ class GalleryScreen extends StatelessWidget {
             ),
 
             // Post Image
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
-              ),
-              child: post.imageUrl != 'placeholder.png'
-                  ? (kIsWeb
-                        ? Image.network(
-                            post.imageUrl,
-                            width: double.infinity,
-                            height: 200,
-                            fit: BoxFit.cover,
-                          )
-                        : Image.file(
-                            File(post.imageUrl),
-                            width: double.infinity,
-                            height: 200,
-                            fit: BoxFit.cover,
-                          ))
-                  : Container(
-                      width: double.infinity,
-                      height: 200,
-                      color: Colors.grey[300],
-                      child: Center(
-                        child: Icon(
-                          Icons.image,
-                          size: 50,
-                          color: Colors.grey[600],
-                        ),
+            Builder(
+              builder: (context) {
+                final imageUrl = post.imageUrl;
+                Widget imageWidget;
+                if (imageUrl.startsWith('assets/')) {
+                  imageWidget = Image.asset(
+                    imageUrl,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  );
+                } else if (imageUrl.startsWith('http')) {
+                  imageWidget = Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  );
+                } else if (!kIsWeb && imageUrl != 'placeholder.png') {
+                  imageWidget = Image.file(
+                    File(imageUrl),
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  );
+                } else {
+                  imageWidget = Container(
+                    width: double.infinity,
+                    height: 200,
+                    color: Colors.grey[300],
+                    child: Center(
+                      child: Icon(
+                        Icons.image,
+                        size: 50,
+                        color: Colors.grey[600],
                       ),
                     ),
+                  );
+                }
+                return imageWidget;
+              },
             ),
 
             // Post Content
@@ -443,55 +451,55 @@ class GalleryScreen extends StatelessWidget {
   }
 
   Widget _buildSampleCommunityPosts(BuildContext context) {
-    // Sample posts using only existing asset images
+    // MODIFIED: Sample posts now use the new separate images.
     final samplePosts = [
       {
-        'userName': 'Sarah Chen',
-        'profilePicture': null, // Use avatar color instead
-        'imageUrl': 'assets/images/lamp.png',
+        'userName': 'Circuit Breaker',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery1.jpg',
         'description':
-            'LED Art Display from old motherboards! Took me 3 days but totally worth it 💡',
-        'likeCount': 24,
+            'A beautiful wall piece made from an old motherboard. The details are mesmerizing! ✨',
+        'likeCount': 134,
         'timeAgo': '2 hours ago',
         'avatarColor': Colors.blue,
       },
       {
-        'userName': 'Mike Rodriguez',
-        'profilePicture': null, // Use avatar color instead
-        'imageUrl': 'assets/images/flashlight.png',
+        'userName': 'Eco Innovator',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery2.jpg',
         'description':
-            'Robot buddy made from old phones and cables! Kids love it 🤖',
-        'likeCount': 18,
+            'Gave some old computer mice a new lease on life as tiny planters for succulents. 🌱',
+        'likeCount': 97,
         'timeAgo': '5 hours ago',
         'avatarColor': Colors.green,
       },
       {
-        'userName': 'Emma Wilson',
-        'profilePicture': null, // Use avatar color instead
-        'imageUrl': 'assets/images/toaster_bookends.jpg',
+        'userName': 'Pixel Perfect',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery3.jpeg',
         'description':
-            'Vintage toaster transformed into unique bookends for my study room',
-        'likeCount': 32,
+            'My collection of art made from recycled computer mice is growing! Which one is your favorite?',
+        'likeCount': 210,
         'timeAgo': '1 day ago',
         'avatarColor': Colors.purple,
       },
       {
-        'userName': 'Alex Kim',
-        'profilePicture': null, // Use avatar color instead
-        'imageUrl': 'assets/images/cable_organize.jpg',
+        'userName': 'Gadget Recycler',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery4.jpeg',
         'description':
-            'Cable management organizer made from old hard drive parts',
-        'likeCount': 15,
+            'Another mouse creation. This little guy is watching you! 👀',
+        'likeCount': 76,
         'timeAgo': '2 days ago',
         'avatarColor': Colors.orange,
       },
       {
-        'userName': 'Lisa Zhang',
-        'profilePicture': null, // Use avatar color instead
-        'imageUrl': 'assets/images/mouse_planter.jpg',
+        'userName': 'Green Tech',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery5.jpg',
         'description':
-            'Mini succulent planter from recycled computer mouse - so cute! 🌱',
-        'likeCount': 28,
+            'An old keyboard has been repurposed into a neat desk organizer. No more clutter!',
+        'likeCount': 188,
         'timeAgo': '3 days ago',
         'avatarColor': Colors.teal,
       },
@@ -516,7 +524,6 @@ class GalleryScreen extends StatelessWidget {
   ) {
     return GestureDetector(
       onTap: () {
-        // Create a temporary GalleryPost for navigation
         final tempPost = GalleryPost(
           userName: sampleData['userName'],
           imageUrl: sampleData['imageUrl'],
@@ -596,30 +603,21 @@ class GalleryScreen extends StatelessWidget {
             ),
 
             // Post Image
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(12),
-              ),
-              child: Image.asset(
-                sampleData['imageUrl'],
-                width: double.infinity,
-                height: 200,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: double.infinity,
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: Center(
-                      child: Icon(
-                        Icons.image,
-                        size: 50,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  );
-                },
-              ),
+            Image.asset(
+              sampleData['imageUrl'],
+              width: double.infinity,
+              height: 200,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: double.infinity,
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: Center(
+                    child: Icon(Icons.image, size: 50, color: Colors.grey[600]),
+                  ),
+                );
+              },
             ),
 
             // Post Content
@@ -815,13 +813,17 @@ class GalleryScreen extends StatelessWidget {
     Function(String) onImageSelected,
   ) {
     final availableImages = [
+      'assets/images/gallery1.jpg',
+      'assets/images/gallery2.jpg',
+      'assets/images/gallery3.jpeg',
+      'assets/images/gallery4.jpeg',
+      'assets/images/gallery5.jpg',
       'assets/images/lamp.png',
       'assets/images/flashlight.png',
       'assets/images/toaster_bookends.jpg',
       'assets/images/cable_organize.jpg',
       'assets/images/mouse_planter.jpg',
       'assets/images/harddriveclock.jpg',
-      'assets/images/ourLogo.png',
     ];
 
     showModalBottomSheet(
@@ -882,7 +884,6 @@ class GalleryScreen extends StatelessWidget {
       return;
     }
 
-    // Create new gallery post
     final newPost = GalleryPost(
       userName: 'You',
       imageUrl: imagePath,
@@ -890,12 +891,10 @@ class GalleryScreen extends StatelessWidget {
       likeCount: 0,
     );
 
-    // Add to posts list if callback is available
     if (onAddPost != null) {
       onAddPost!(newPost);
     }
 
-    // Close the modal
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -925,7 +924,6 @@ class GalleryScreen extends StatelessWidget {
               subtitle: const Text('Browse all community creations'),
               onTap: () {
                 Navigator.pop(context);
-                // Scroll to community gallery section
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Scrolled to Community Gallery!'),

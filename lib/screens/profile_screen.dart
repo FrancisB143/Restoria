@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/gallery_post_model.dart';
+import 'gallery_detail_screen.dart'; // Import the detail screen
 
 class ProfileScreen extends StatelessWidget {
   final String userName;
@@ -31,9 +32,8 @@ class ProfileScreen extends StatelessWidget {
               backgroundColor: colorScheme.primary,
               child: const CircleAvatar(
                 radius: 50,
-                backgroundImage: NetworkImage(
-                  'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-                ),
+                // MODIFIED: Changed to a local asset image
+                backgroundImage: AssetImage('assets/images/avatar1.png'),
               ),
             ),
             const SizedBox(height: 16),
@@ -108,9 +108,22 @@ class ProfileScreen extends StatelessWidget {
                     itemCount: myPosts.length,
                     itemBuilder: (context, index) {
                       final post = myPosts[index];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.asset(post.imageUrl, fit: BoxFit.cover),
+                      // MODIFIED: Wrapped with GestureDetector to make it clickable
+                      return GestureDetector(
+                        onTap: () {
+                          // Navigate to the detail screen for the tapped post
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  GalleryDetailScreen(post: post),
+                            ),
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.asset(post.imageUrl, fit: BoxFit.cover),
+                        ),
                       );
                     },
                   ),

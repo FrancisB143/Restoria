@@ -110,8 +110,9 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
     if (_commentController.text.isEmpty) return;
     final newComment = Comment(
       userName: 'You',
-      avatarAsset: 'assets/images/current_user_avatar.png',
+      avatarAsset: 'assets/images/ourLogo.png',
       text: _commentController.text,
+      timestamp: 'Just now', // <-- Add this line
     );
     setState(() {
       if (_replyingToComment == null) {

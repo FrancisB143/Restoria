@@ -38,12 +38,14 @@ class _MyAppState extends State<MyApp> {
           avatarAsset: 'assets/images/avatar1.png',
           text: 'This looks amazing! I have to try this.',
           likeCount: 12,
+          timestamp: '1w ago', // FIXED: Added timestamp
           replies: [
             Comment(
               userName: 'Maria K.',
               avatarAsset: 'assets/images/avatar2.png',
               text: 'I agree!',
               likeCount: 3,
+              timestamp: '1w ago', // FIXED: Added timestamp
             ),
           ],
         ),
@@ -52,6 +54,7 @@ class _MyAppState extends State<MyApp> {
           avatarAsset: 'assets/images/avatar2.png',
           text: 'Great tutorial, very clear instructions.',
           likeCount: 8,
+          timestamp: '2w ago', // FIXED: Added timestamp
         ),
       ],
     ),
