@@ -75,24 +75,26 @@ flutter:
     - assets/images/google_logo.png
     - assets/images/avatar1.png
     - assets/images/avatar2.png
-    - assets/images/image1.jpg
-    - assets/images/image2.jpg
     - assets/images/gallery1.jpg
     - assets/images/gallery2.jpg
-    - assets/images/gallery3.jpeg
-    - assets/images/gallery4.jpeg
+    - assets/images/gallery3.jpg
+    - assets/images/gallery4.jpg
     - assets/images/gallery5.jpg
     - assets/images/project1.jpg
     - assets/images/project2.jpg
     - assets/images/project3.jpg
+    - assets/images/project4.jpg
     - assets/images/lamp.png
     - assets/images/flashlight.png
-    - assets/images/cable_organize.jpg
-    - assets/images/mouse_planter.jpg
     - assets/images/toaster_bookends.jpg
-    - assets/images/harddriveclock.jpg
+    - assets/images/harddisk_clock.png
+    - assets/images/carton_wire_organizer.jpg
+    - assets/images/hanging_cd.png
     - assets/videos/flashlight_plastic.mp4
     - assets/videos/lamp_papercup.mp4
+    - assets/videos/harddisk_clock.mp4
+    - assets/videos/hanging_cd.mp4
+    - assets/videos/wire_organizer.mp4
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

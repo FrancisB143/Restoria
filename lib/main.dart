@@ -6,6 +6,7 @@ import 'screens/add_tutorial_screen.dart';
 import 'screens/add_gallery_post_screen.dart';
 import 'screens/login_screen.dart'; // Import the login screen
 import 'screens/onboarding_screen.dart'; // Import the onboarding screen
+import 'screens/register_screen.dart'; // Import the register screen
 
 void main() {
   runApp(const MyApp());
@@ -59,14 +60,14 @@ class _MyAppState extends State<MyApp> {
       ],
     ),
     Tutorial(
-      title: 'Cable Organizer',
+      title: 'Wire Organizer',
       eWasteType: 'Cables',
       creatorName: 'Juana Dela Cruz',
       creatorAvatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-      imageUrl: 'assets/images/cable_organize.jpg',
-      videoUrl: 'assets/videos/flashlight_plastic.mp4',
+      imageUrl: 'assets/images/carton_wire_organizer.jpg',
+      videoUrl: 'assets/videos/wire_organizer.mp4',
       description:
-          'A simple way to tidy up your desk using old cables and clips.',
+          'DIY wire organizer made from carton – simple, cheap, and keeps my cables tangle-free!',
       likeCount: 78,
       comments: [],
     ),
@@ -83,26 +84,26 @@ class _MyAppState extends State<MyApp> {
       comments: [],
     ),
     Tutorial(
-      title: 'Hard Drive Clock',
+      title: 'Hard Disk Clock',
       creatorName: "Tech Maker",
       creatorAvatarUrl: 'https://i.pravatar.cc/150?u=techmaker',
       eWasteType: 'Clocks',
-      imageUrl: 'assets/images/harddriveclock.jpg',
-      videoUrl: 'assets/videos/lamp_papercup.mp4',
+      imageUrl: 'assets/images/harddisk_clock.png',
+      videoUrl: 'assets/videos/harddisk_clock.mp4',
       description:
-          'Transform an old computer hard drive into a unique working clock for your desk.',
+          'Give your old hard disk a second life as a unique wall clock! Instead of letting e-waste pile up, transform it into a functional piece of art that’s both eco-friendly and eye-catching. Every tick reminds you that recycling can be stylish and sustainable!',
       likeCount: 78,
       comments: [],
     ),
     Tutorial(
-      title: 'Mouse Planter',
+      title: 'Moon and Star Hanging CD',
       creatorName: "Admin",
       creatorAvatarUrl: 'https://i.pravatar.cc/150?u=admin',
       eWasteType: 'Furnitures',
-      imageUrl: 'assets/images/mouse_planter.jpg',
-      videoUrl: 'assets/videos/flashlight_plastic.mp4',
+      imageUrl: 'assets/images/hanging_cd.png',
+      videoUrl: 'assets/videos/hanging_cd.mp4',
       description:
-          'An old computer mouse makes for a tiny, adorable planter for succulents.',
+          'Turn your old CDs into a dreamy Moon and Star hanging decor! 🌙⭐ With just a little creativity, you can upcycle waste into something magical that brightens up your space. Easy to make, eco-friendly, and perfect for adding sparkle to your room—why throw away when you can create?',
       likeCount: 155,
       comments: [],
     ),
@@ -147,7 +148,7 @@ class _MyAppState extends State<MyApp> {
     ),
     GalleryPost(
       userName: 'Maria K.',
-      imageUrl: 'assets/images/image1.jpg',
+      imageUrl: 'assets/images/project4.jpg',
       likeCount: 51,
       description: 'My latest creation from old computer fans!',
     ),
@@ -209,9 +210,8 @@ class _MyAppState extends State<MyApp> {
           onAddTutorial: () => _navigateAndAddTutorial(context),
           onAddGalleryPost: () => _navigateAndAddGalleryPost(context),
         ),
-        // It's good practice to also define a route for your LoginScreen
-        // if you ever need to navigate back to it (e.g., after a logout)
         '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(), // <-- Add this line
       },
     );
   }

@@ -458,7 +458,7 @@ class GalleryScreen extends StatelessWidget {
         'profilePicture': null,
         'imageUrl': 'assets/images/gallery1.jpg',
         'description':
-            'A beautiful wall piece made from an old motherboard. The details are mesmerizing! ✨',
+            'Rock your creativity by turning old CDs, cotton balls, and simple materials into a one-of-a-kind guitar art piece! This eco-friendly craft proves that music isn’t the only thing a guitar can inspire—it can also teach us how to reuse, recycle, and create beauty from waste.',
         'likeCount': 134,
         'timeAgo': '2 hours ago',
         'avatarColor': Colors.blue,
@@ -468,7 +468,7 @@ class GalleryScreen extends StatelessWidget {
         'profilePicture': null,
         'imageUrl': 'assets/images/gallery2.jpg',
         'description':
-            'Gave some old computer mice a new lease on life as tiny planters for succulents. 🌱',
+            'Transform unused keyboard keys into a creative photo frame that gives your memories a sustainable edge! Instead of throwing away broken keyboards, turn them into something meaningful—because every picture deserves a frame as unique as the story it holds.',
         'likeCount': 97,
         'timeAgo': '5 hours ago',
         'avatarColor': Colors.green,
@@ -476,9 +476,9 @@ class GalleryScreen extends StatelessWidget {
       {
         'userName': 'Pixel Perfect',
         'profilePicture': null,
-        'imageUrl': 'assets/images/gallery3.jpeg',
+        'imageUrl': 'assets/images/gallery3.jpg',
         'description':
-            'My collection of art made from recycled computer mice is growing! Which one is your favorite?',
+            'Give your old keyboard a new purpose by turning it into a handy organizer for scissors, pencils, and pens! Instead of ending up as e-waste, it becomes a functional desk accessory that keeps your workspace neat while promoting creativity and sustainability.',
         'likeCount': 210,
         'timeAgo': '1 day ago',
         'avatarColor': Colors.purple,
@@ -486,7 +486,7 @@ class GalleryScreen extends StatelessWidget {
       {
         'userName': 'Gadget Recycler',
         'profilePicture': null,
-        'imageUrl': 'assets/images/gallery4.jpeg',
+        'imageUrl': 'assets/images/gallery4.jpg',
         'description':
             'Another mouse creation. This little guy is watching you! 👀',
         'likeCount': 76,

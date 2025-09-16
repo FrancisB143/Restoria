@@ -121,11 +121,11 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
     Widget image;
 
     if (imageUrl.startsWith('assets/')) {
-      image = Image.asset(imageUrl, fit: BoxFit.cover);
+      image = Image.asset(imageUrl, fit: BoxFit.contain);
     } else if (kIsWeb) {
-      image = Image.network(imageUrl, fit: BoxFit.cover);
+      image = Image.network(imageUrl, fit: BoxFit.contain);
     } else {
-      image = Image.file(File(imageUrl), fit: BoxFit.cover);
+      image = Image.file(File(imageUrl), fit: BoxFit.contain);
     }
 
     return Padding(

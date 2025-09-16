@@ -136,7 +136,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: NetworkImage(widget.otherUserAvatarUrl),
+              backgroundImage: AssetImage('assets/images/ourLogo.png'),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -151,28 +151,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.video_call),
-            onPressed: () {
-              // Video call functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Video call feature coming soon!'),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.call),
-            onPressed: () {
-              // Call functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Call feature coming soon!')),
-              );
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -208,7 +186,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           if (!message.isFromCurrentUser) ...[
             CircleAvatar(
               radius: 16,
-              backgroundImage: NetworkImage(widget.otherUserAvatarUrl),
+              backgroundImage: AssetImage('assets/images/ourLogo.png'),
             ),
             const SizedBox(width: 8),
           ],
@@ -251,8 +229,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
-              backgroundColor: colorScheme.primary,
-              child: Icon(Icons.person, size: 18, color: colorScheme.onPrimary),
+              backgroundImage: AssetImage('assets/images/avatar1.png'),
             ),
           ],
         ],
