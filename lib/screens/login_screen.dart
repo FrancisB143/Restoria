@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +13,11 @@ class _LoginScreenState extends State<LoginScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final _supabase = Supabase.instance.client;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -34,18 +40,163 @@ class _LoginScreenState extends State<LoginScreen>
         );
 
     _animationController.forward();
+
+    // Listen for OAuth callbacks
+    _supabase.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn) {
+        _handleAuthSuccess();
+      }
+    });
+  }
+
+  Future<void> _handleAuthSuccess() async {
+    final user = _supabase.auth.currentUser;
+    if (user != null && mounted) {
+      // Check if profile exists
+      try {
+        final profileData = await _supabase
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (!mounted) return;
+
+        if (profileData == null) {
+          // No profile exists, navigate to profile setup
+          Navigator.pushReplacementNamed(context, '/profile-setup');
+        } else {
+          // Profile exists, navigate to main
+          Navigator.pushReplacementNamed(context, '/main');
+        }
+      } catch (e) {
+        _showError('Error checking profile: $e');
+      }
+    }
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleGoogleSignIn(BuildContext context) {
-    // In a real app, this is where you would implement Google Sign-In logic.
-    // For this UI-only example, we'll directly navigate to the main screen.
-    Navigator.pushReplacementNamed(context, '/main');
+  Future<void> _handleLogin() async {
+    // Validate inputs
+    if (_emailController.text.trim().isEmpty) {
+      _showError('Please enter your email');
+      return;
+    }
+
+    if (_passwordController.text.isEmpty) {
+      _showError('Please enter your password');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      if (response.user != null) {
+        // Check if profile exists
+        final profileData = await _supabase
+            .from('profiles')
+            .select()
+            .eq('id', response.user!.id)
+            .maybeSingle();
+
+        if (!mounted) return;
+
+        if (profileData == null) {
+          // No profile exists, navigate to profile setup
+          Navigator.pushReplacementNamed(context, '/profile-setup');
+        } else {
+          // Profile exists, login successful, navigate to main screen
+          Navigator.pushReplacementNamed(context, '/main');
+        }
+      }
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError('An unexpected error occurred: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _handleGoogleSignIn(BuildContext context) async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Sign in with Google OAuth using proper Supabase callback
+      final bool result = await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+
+      if (!result) {
+        if (mounted) {
+          _showError('Google sign-in was cancelled');
+        }
+        return;
+      }
+
+      // Wait a moment for the auth state to update
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (!mounted) return;
+
+      // Check if user is authenticated
+      final user = _supabase.auth.currentUser;
+      if (user != null) {
+        // Check if profile exists
+        final profileData = await _supabase
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (!mounted) return;
+
+        if (profileData == null) {
+          // No profile exists, navigate to profile setup
+          Navigator.pushReplacementNamed(context, '/profile-setup');
+        } else {
+          // Profile exists, navigate to main
+          Navigator.pushReplacementNamed(context, '/main');
+        }
+      }
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError('Google sign-in failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -180,6 +331,8 @@ class _LoginScreenState extends State<LoginScreen>
 
                             // Email Field
                             TextField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 labelText: 'Email',
                                 border: OutlineInputBorder(
@@ -195,6 +348,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                             // Password Field
                             TextField(
+                              controller: _passwordController,
                               obscureText: true,
                               decoration: InputDecoration(
                                 labelText: 'Password',
@@ -221,15 +375,22 @@ class _LoginScreenState extends State<LoginScreen>
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              onPressed: () {
-                                // Handle login logic
-                              },
-                              child: Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: isSmallScreen ? 14 : 16,
-                                ),
-                              ),
+                              onPressed: _isLoading ? null : _handleLogin,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Login',
+                                      style: TextStyle(
+                                        fontSize: isSmallScreen ? 14 : 16,
+                                      ),
+                                    ),
                             ),
 
                             SizedBox(height: isSmallScreen ? 10 : 14),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,6 +14,99 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+
+  final _supabase = Supabase.instance.client;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleRegister() async {
+    // Validate inputs
+    if (_nameController.text.trim().isEmpty) {
+      _showError('Please enter your name');
+      return;
+    }
+
+    if (_emailController.text.trim().isEmpty) {
+      _showError('Please enter your email');
+      return;
+    }
+
+    if (_passwordController.text.isEmpty) {
+      _showError('Please enter a password');
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      _showError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showError('Passwords do not match');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Sign up the user with email confirmation disabled and user metadata
+      final response = await _supabase.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        data: {'name': _nameController.text.trim()},
+      );
+
+      if (!mounted) return;
+
+      if (response.user != null) {
+        // Registration successful
+        _showSuccess('Registration successful! You can now login.');
+
+        // Wait a bit then navigate to login
+        await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError('An unexpected error occurred: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,81 +189,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () {
-                // Handle registration logic
-              },
-              child: Text(
-                'Register',
-                style: TextStyle(fontSize: isSmallScreen ? 15 : 16),
-              ),
-            ),
-            SizedBox(height: isSmallScreen ? 10 : 14),
-
-            // Or Divider
-            Row(
-              children: [
-                Expanded(child: Divider(color: Colors.grey[300])),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    'or',
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.w500,
-                      fontSize: isSmallScreen ? 12 : 13,
+              onPressed: _isLoading ? null : _handleRegister,
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Register',
+                      style: TextStyle(fontSize: isSmallScreen ? 15 : 16),
                     ),
-                  ),
-                ),
-                Expanded(child: Divider(color: Colors.grey[300])),
-              ],
             ),
-            SizedBox(height: isSmallScreen ? 10 : 14),
-
-            // Sign Up with Google Button
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.08),
-                    spreadRadius: 0,
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: ElevatedButton.icon(
-                icon: Image.asset(
-                  'assets/images/google_logo.png',
-                  height: isSmallScreen ? 16.0 : 18.0,
-                  width: isSmallScreen ? 16.0 : 18.0,
-                ),
-                label: Text(
-                  'Sign up with Google',
-                  style: TextStyle(fontSize: isSmallScreen ? 13 : 15),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.grey[700],
-                  elevation: 0,
-                  padding: EdgeInsets.symmetric(
-                    vertical: isSmallScreen ? 12 : 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  textStyle: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: isSmallScreen ? 13 : 15,
-                  ),
-                ),
-                onPressed: () {
-                  // Handle Google sign up logic
-                },
-              ),
-            ),
-            SizedBox(height: isSmallScreen ? 10 : 14),
+            SizedBox(height: isSmallScreen ? 8 : 12),
 
             // Already have an account? Sign in
             GestureDetector(
@@ -180,7 +215,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 'Already have an account? Sign in',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: const Color(0xFF4CAF50),
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: isSmallScreen ? 13 : 15,
                   decoration: TextDecoration.underline,
                 ),

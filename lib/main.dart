@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/tutorial_model.dart';
 import 'models/gallery_post_model.dart';
 import 'screens/main_screen.dart';
@@ -7,8 +8,21 @@ import 'screens/add_gallery_post_screen.dart';
 import 'screens/login_screen.dart'; // Import the login screen
 import 'screens/onboarding_screen.dart'; // Import the onboarding screen
 import 'screens/register_screen.dart'; // Import the register screen
+import 'screens/profile_setup_screen.dart'; // Import the profile setup screen
+import 'config/supabase_config.dart'; // Import Supabase config
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase with auth callback handling
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
+  );
+
   runApp(const MyApp());
 }
 
@@ -211,7 +225,8 @@ class _MyAppState extends State<MyApp> {
           onAddGalleryPost: () => _navigateAndAddGalleryPost(context),
         ),
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(), // <-- Add this line
+        '/register': (context) => const RegisterScreen(),
+        '/profile-setup': (context) => const ProfileSetupScreen(),
       },
     );
   }

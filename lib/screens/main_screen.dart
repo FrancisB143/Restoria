@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
 import 'gallery_screen.dart';
@@ -29,6 +30,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   late final List<Widget> _pages;
+  final _supabase = Supabase.instance.client;
+  String? _userProfileName;
 
   void _addTutorialDirectly(Tutorial tutorial) {
     // Add tutorial to local state immediately for instant UI update
@@ -47,6 +50,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUserProfile();
     _pages = [
       LearnScreen(
         tutorials: widget.tutorials,
@@ -61,10 +65,37 @@ class _MainScreenState extends State<MainScreen> {
       ),
       const MessagesScreen(),
       ProfileScreen(
-        userName: widget.currentUserName,
+        userName: _userProfileName ?? widget.currentUserName,
         allPosts: widget.galleryPosts,
       ),
     ];
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user != null) {
+        final profileData = await _supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', user.id)
+            .single();
+
+        if (mounted) {
+          setState(() {
+            _userProfileName = profileData['name'] as String;
+            // Update the profile screen with the fetched name
+            _pages[3] = ProfileScreen(
+              userName: _userProfileName!,
+              allPosts: widget.galleryPosts,
+            );
+          });
+        }
+      }
+    } catch (e) {
+      // If profile fetch fails, use the default name
+      print('Error loading profile: $e');
+    }
   }
 
   void _onItemTapped(int index) {

@@ -44,21 +44,7 @@ class ProfileScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.location_on, size: 16, color: colorScheme.secondary),
-                const SizedBox(width: 4),
-                Text(
-                  'Davao City, Philippines',
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.secondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Text(
               'Turning e-waste into e-wonderful! ♻️✨ Creator and seller of unique upcycled art.',
               textAlign: TextAlign.center,
