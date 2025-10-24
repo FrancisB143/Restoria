@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io';
+import 'dart:typed_data';
 import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
 import 'tutorial_detail_screen.dart';
@@ -62,27 +66,16 @@ class _LearnScreenState extends State<LearnScreen> {
     });
   }
 
-  String _getCreatorAvatar(String creatorName) {
-    // Map creator names to available asset images
-    final avatarMap = {
-      'Alex Martinez': 'assets/images/lamp.png',
-      'Sarah Johnson': 'assets/images/flashlight.png',
-      'Mike Chen': 'assets/images/toaster_bookends.jpg',
-      'Emma Wilson': 'assets/images/cable_organize.jpg',
-      'David Kim': 'assets/images/mouse_planter.jpg',
-      'Lisa Anderson': 'assets/images/project1.jpg',
-      'Ryan Taylor': 'assets/images/project2.jpg',
-      'Sophie Brown': 'assets/images/project3.jpg',
-    };
-
-    return avatarMap[creatorName] ?? 'assets/images/ourLogo.png';
-  }
-
-  void _showUploadTutorialBottomSheet(BuildContext context) {
+  void _showUploadTutorialBottomSheet(BuildContext context) async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     String selectedCategory = 'Lighting';
-    String selectedImagePath = 'assets/images/lamp.png';
+    XFile? selectedVideoXFile; // Changed to XFile for cross-platform support
+    String? videoFileName;
+    XFile? selectedThumbnailXFile; // Store XFile instead of File
+    String? thumbnailFileName;
+
+    final imagePicker = ImagePicker();
 
     showModalBottomSheet(
       context: context,
@@ -131,12 +124,13 @@ class _LearnScreenState extends State<LearnScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        _saveTutorial(
+                        _saveTutorialWithVideo(
                           context,
                           titleController.text,
                           descriptionController.text,
                           selectedCategory,
-                          selectedImagePath,
+                          selectedVideoXFile,
+                          selectedThumbnailXFile,
                         );
                       },
                       child: const Text('Save'),
@@ -151,34 +145,169 @@ class _LearnScreenState extends State<LearnScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Image selection
+                      // Video selection
                       Container(
                         width: double.infinity,
                         height: 200,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(
-                            selectedImagePath,
-                            fit: BoxFit.cover,
+                          border: Border.all(
+                            color: selectedVideoXFile != null
+                                ? Colors.green
+                                : Colors.grey.shade300,
+                            width: 2,
                           ),
                         ),
+                        child: selectedVideoXFile != null
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.video_file,
+                                      size: 64,
+                                      color: Colors.green,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Video Selected',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      videoFileName ?? 'video.mp4',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.video_call,
+                                      size: 64,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No Video Selected',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 8),
                       TextButton.icon(
-                        onPressed: () {
-                          _showImageSelector(context, (imagePath) {
-                            setModalState(() {
-                              selectedImagePath = imagePath;
-                            });
-                          });
+                        onPressed: () async {
+                          try {
+                            final XFile? video = await imagePicker.pickVideo(
+                              source: ImageSource.gallery,
+                              maxDuration: const Duration(minutes: 15),
+                            );
+                            if (video != null) {
+                              setModalState(() {
+                                selectedVideoXFile = video;
+                                videoFileName = video.name;
+                              });
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to pick video: $e'),
+                              ),
+                            );
+                          }
                         },
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Change Image'),
+                        icon: const Icon(Icons.video_library),
+                        label: Text(
+                          selectedVideoXFile != null
+                              ? 'Change Video'
+                              : 'Select Video from Gallery',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Optional thumbnail picker
+                      const Text(
+                        'Thumbnail Image (Optional)',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      if (selectedThumbnailXFile != null)
+                        Container(
+                          width: double.infinity,
+                          height: 150,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green, width: 2),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: FutureBuilder<Uint8List>(
+                              future: selectedThumbnailXFile!.readAsBytes(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  return Image.memory(
+                                    snapshot.data!,
+                                    fit: BoxFit.cover,
+                                  );
+                                }
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          try {
+                            final XFile? image = await imagePicker.pickImage(
+                              source: ImageSource.gallery,
+                              maxWidth: 1920,
+                              maxHeight: 1080,
+                              imageQuality: 85,
+                            );
+                            if (image != null) {
+                              setModalState(() {
+                                selectedThumbnailXFile = image;
+                                thumbnailFileName = image.name;
+                              });
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to pick image: $e'),
+                              ),
+                            );
+                          }
+                        },
+                        icon: Icon(
+                          selectedThumbnailXFile != null
+                              ? Icons.check_circle
+                              : Icons.add_photo_alternate,
+                          color: selectedThumbnailXFile != null
+                              ? Colors.green
+                              : null,
+                        ),
+                        label: Text(
+                          selectedThumbnailXFile != null
+                              ? 'Change Thumbnail'
+                              : 'Add Thumbnail (Optional)',
+                        ),
                       ),
                       const SizedBox(height: 16),
                       // Title field
@@ -253,70 +382,14 @@ class _LearnScreenState extends State<LearnScreen> {
     );
   }
 
-  void _showImageSelector(
-    BuildContext context,
-    Function(String) onImageSelected,
-  ) {
-    final availableImages = [
-      'assets/images/lamp.png',
-      'assets/images/flashlight.png',
-      'assets/images/toaster_bookends.jpg',
-      'assets/images/cable_organize.jpg',
-      'assets/images/mouse_planter.jpg',
-      'assets/images/project1.jpg',
-      'assets/images/project2.jpg',
-      'assets/images/project3.jpg',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Select Image',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            GridView.builder(
-              shrinkWrap: true,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: availableImages.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    onImageSelected(availableImages[index]);
-                    Navigator.pop(context);
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      availableImages[index],
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _saveTutorial(
+  void _saveTutorialWithVideo(
     BuildContext context,
     String title,
     String description,
     String category,
-    String imagePath,
-  ) {
+    XFile? videoFile,
+    XFile? thumbnailFile,
+  ) async {
     if (title.isEmpty || description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -327,49 +400,201 @@ class _LearnScreenState extends State<LearnScreen> {
       return;
     }
 
-    // Create new tutorial object
-    final newTutorial = Tutorial(
-      title: title,
-      eWasteType: category,
-      creatorName: 'You',
-      creatorAvatarUrl: 'assets/images/ourLogo.png',
-      imageUrl: imagePath,
-      videoUrl: 'assets/videos/flashlight_plastic.mp4', // Default video
-      description: description,
-      likeCount: 0,
-      comments: [],
-    );
-
-    // Add to tutorials list through parent callback
-    widget.onAddTutorial(newTutorial);
-
-    // Refresh the filtered tutorials to show the new tutorial immediately
-    setState(() {
-      _filteredTutorials = [newTutorial, ..._filteredTutorials];
-    });
-
-    // Close the modal
-    Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Tutorial "$title" uploaded successfully!'),
-        backgroundColor: Colors.green,
-        action: SnackBarAction(
-          label: 'View',
-          textColor: Colors.white,
-          onPressed: () {
-            // The tutorial will appear in the list automatically
-          },
+    if (videoFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a video'),
+          backgroundColor: Colors.red,
         ),
-      ),
+      );
+      return;
+    }
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+
+      if (user == null) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not authenticated'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Upload video to Supabase Storage
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final videoBytes = await videoFile.readAsBytes();
+      final videoPath = '${user.id}/${timestamp}_${videoFile.name}';
+
+      await supabase.storage
+          .from('tutorial-videos')
+          .uploadBinary(
+            videoPath,
+            videoBytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      final videoUrl = supabase.storage
+          .from('tutorial-videos')
+          .getPublicUrl(videoPath);
+
+      // Upload thumbnail to Supabase Storage (if provided)
+      String imageUrl;
+      if (thumbnailFile != null) {
+        final imageBytes = await thumbnailFile.readAsBytes();
+        final imagePath = '${user.id}/${timestamp}_${thumbnailFile.name}';
+
+        await supabase.storage
+            .from('tutorial-images')
+            .uploadBinary(
+              imagePath,
+              imageBytes,
+              fileOptions: const FileOptions(upsert: true),
+            );
+
+        imageUrl = supabase.storage
+            .from('tutorial-images')
+            .getPublicUrl(imagePath);
+      } else {
+        imageUrl = 'https://via.placeholder.com/400x300?text=Video+Tutorial';
+      }
+
+      // Insert tutorial into database
+      final tutorialData = {
+        'user_id': user.id,
+        'title': title,
+        'description': description,
+        'e_waste_type': category,
+        'video_url': videoUrl,
+        'image_url': imageUrl,
+        'like_count': 0,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      await supabase.from('tutorials').insert(tutorialData);
+
+      // Get user profile name and avatar
+      String userName = 'You';
+      String avatarUrl = 'assets/images/avatar1.png';
+
+      try {
+        final profileResponse = await supabase
+            .from('profiles')
+            .select('name, avatar_url')
+            .eq('id', user.id)
+            .single();
+
+        userName = profileResponse['name'] as String? ?? 'You';
+        // Check if avatar_url exists in response
+        if (profileResponse.containsKey('avatar_url')) {
+          avatarUrl =
+              profileResponse['avatar_url'] as String? ??
+              'assets/images/avatar1.png';
+        }
+      } catch (profileError) {
+        print('Error fetching profile: $profileError');
+
+        // Profile doesn't exist, create it
+        try {
+          // Get user email
+          final userEmail = user.email ?? '';
+
+          // Try to get name from user metadata
+          final userMetadata = user.userMetadata;
+          userName = userMetadata?['name'] as String? ?? 'User';
+
+          print('Creating profile for user ${user.id} with name: $userName');
+
+          // Insert profile into database
+          await supabase.from('profiles').insert({
+            'id': user.id,
+            'name': userName,
+            'email': userEmail,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+
+          print('Profile created successfully');
+        } catch (createError) {
+          print('Error creating profile: $createError');
+          // If still fails, try fetching just name as fallback
+          try {
+            final nameResponse = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', user.id)
+                .single();
+
+            userName = nameResponse['name'] as String? ?? 'You';
+          } catch (nameError) {
+            print('Error fetching profile name: $nameError');
+            userName = 'You';
+          }
+        }
+      }
+
+      // Create new tutorial object
+      final newTutorial = Tutorial(
+        userId: user.id,
+        title: title,
+        eWasteType: category,
+        creatorName: userName,
+        creatorAvatarUrl: avatarUrl,
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        description: description,
+        likeCount: 0,
+        comments: [],
+      );
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      // Close the upload modal
+      Navigator.pop(context);
+
+      // Add to parent (this will refresh the main list)
+      widget.onAddTutorial(newTutorial);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Tutorial "$title" uploaded successfully!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      // Close loading dialog
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload tutorial: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   Widget _buildTutorialImage(String imageUrl) {
     bool isNetworkImage = imageUrl.startsWith('http');
+    bool isAssetImage = imageUrl.startsWith('assets/');
+    bool isBlobUrl = imageUrl.startsWith('blob:');
 
-    if (isNetworkImage) {
+    if (isNetworkImage || isBlobUrl) {
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,
@@ -379,11 +604,57 @@ class _LearnScreenState extends State<LearnScreen> {
           return const Center(child: CircularProgressIndicator());
         },
         errorBuilder: (context, error, stackTrace) {
-          return const Icon(Icons.broken_image, size: 40, color: Colors.grey);
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+              child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
+            ),
+          );
+        },
+      );
+    } else if (isAssetImage) {
+      return Image.asset(
+        imageUrl,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+              child: Icon(
+                Icons.image_not_supported,
+                size: 40,
+                color: Colors.grey,
+              ),
+            ),
+          );
         },
       );
     } else {
-      return Image.asset(imageUrl, width: double.infinity, fit: BoxFit.cover);
+      // For local file paths (mobile/desktop)
+      try {
+        return Image.file(
+          File(imageUrl),
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        // Fallback for any errors
+        return Container(
+          color: Colors.grey.shade200,
+          child: const Center(
+            child: Icon(Icons.image, size: 40, color: Colors.grey),
+          ),
+        );
+      }
     }
   }
 
@@ -510,7 +781,7 @@ class _LearnScreenState extends State<LearnScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '• 45 min',
+                          '• ${_formatTimeAgo(tutorial.createdAt)}',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: Colors.grey.shade600,
@@ -547,9 +818,18 @@ class _LearnScreenState extends State<LearnScreen> {
                       children: [
                         CircleAvatar(
                           radius: 12,
-                          backgroundColor: Colors.grey.shade200,
-                          backgroundImage: AssetImage(
-                            _getCreatorAvatar(tutorial.creatorName),
+                          backgroundColor: _getAvatarColor(
+                            tutorial.creatorName,
+                          ),
+                          child: Text(
+                            tutorial.creatorName.isNotEmpty
+                                ? tutorial.creatorName[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -975,5 +1255,51 @@ class _LearnScreenState extends State<LearnScreen> {
         ],
       ),
     );
+  }
+
+  Color _getAvatarColor(String name) {
+    // Generate consistent color based on name
+    final colors = [
+      Colors.blue.shade600,
+      Colors.green.shade600,
+      Colors.orange.shade600,
+      Colors.purple.shade600,
+      Colors.red.shade600,
+      Colors.teal.shade600,
+      Colors.indigo.shade600,
+      Colors.pink.shade600,
+    ];
+
+    // Use hashCode to get consistent color for same name
+    final index = name.hashCode.abs() % colors.length;
+    return colors[index];
+  }
+
+  String _formatTimeAgo(DateTime? dateTime) {
+    if (dateTime == null) return '--';
+
+    final now = DateTime.now().toUtc();
+    final created = dateTime.toUtc();
+    final diff = now.difference(created);
+
+    if (diff.inSeconds < 10) return 'just now';
+    if (diff.inSeconds < 60) return '${diff.inSeconds} seconds ago';
+
+    if (diff.inMinutes < 2) return '1 minute ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} minutes ago';
+
+    if (diff.inHours < 2) return '1 hour ago';
+    if (diff.inHours < 24) return '${diff.inHours} hours ago';
+
+    if (diff.inDays < 2) return '1 day ago';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+
+    final weeks = (diff.inDays / 7).floor();
+    if (weeks < 2) return '1 week ago';
+    if (weeks < 52) return '$weeks weeks ago';
+
+    final years = (diff.inDays / 365).floor();
+    if (years < 2) return '1 year ago';
+    return '$years years ago';
   }
 }

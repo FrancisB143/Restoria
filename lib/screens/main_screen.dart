@@ -29,7 +29,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  late final List<Widget> _pages;
   final _supabase = Supabase.instance.client;
   String? _userProfileName;
 
@@ -51,7 +50,10 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _loadUserProfile();
-    _pages = [
+  }
+
+  List<Widget> _buildPages() {
+    return [
       LearnScreen(
         tutorials: widget.tutorials,
         allPosts: widget.galleryPosts,
@@ -84,11 +86,6 @@ class _MainScreenState extends State<MainScreen> {
         if (mounted) {
           setState(() {
             _userProfileName = profileData['name'] as String;
-            // Update the profile screen with the fetched name
-            _pages[3] = ProfileScreen(
-              userName: _userProfileName!,
-              allPosts: widget.galleryPosts,
-            );
           });
         }
       }
@@ -105,9 +102,12 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final pages = _buildPages();
+
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[

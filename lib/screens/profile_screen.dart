@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
-import 'gallery_detail_screen.dart'; // Import the detail screen
+import '../models/tutorial_model.dart';
+import 'gallery_detail_screen.dart';
+import 'tutorial_detail_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final String userName;
   final List<GalleryPost> allPosts;
 
@@ -13,12 +16,134 @@ class ProfileScreen extends StatelessWidget {
   });
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _supabase = Supabase.instance.client;
+  List<dynamic> _userProjects = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProjects();
+  }
+
+  Future<void> _loadUserProjects() async {
+    try {
+      setState(() => _isLoading = true);
+
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Fetch user profile data
+      String userName = widget.userName;
+      String avatarUrl = 'assets/images/avatar1.png';
+
+      try {
+        final profileResponse = await _supabase
+            .from('profiles')
+            .select('name, avatar_url')
+            .eq('id', user.id)
+            .single();
+
+        userName = profileResponse['name'] as String? ?? widget.userName;
+        if (profileResponse.containsKey('avatar_url') &&
+            profileResponse['avatar_url'] != null) {
+          avatarUrl = profileResponse['avatar_url'] as String;
+        }
+      } catch (profileError) {
+        debugPrint('Error fetching profile: $profileError');
+        // Try fetching just name if avatar_url doesn't exist
+        try {
+          final nameResponse = await _supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', user.id)
+              .single();
+
+          userName = nameResponse['name'] as String? ?? widget.userName;
+        } catch (nameError) {
+          debugPrint('Error fetching name: $nameError');
+        }
+      }
+
+      // Fetch user's tutorials
+      final tutorialsResponse = await _supabase
+          .from('tutorials')
+          .select()
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false);
+
+      // Fetch user's gallery posts
+      final galleryResponse = await _supabase
+          .from('gallery_posts')
+          .select()
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false);
+
+      final projects = <Map<String, dynamic>>[];
+
+      // Add tutorials with type marker and updated creator info
+      for (var tutorial in tutorialsResponse) {
+        final tutorialData = {
+          ...tutorial,
+          'creator_name': userName,
+          'creator_avatar_url': avatarUrl,
+        };
+
+        projects.add({
+          'type': 'tutorial',
+          'data': Tutorial.fromJson(tutorialData),
+          'created_at': tutorial['created_at'],
+        });
+      }
+
+      // Add gallery posts with type marker and updated user info
+      for (var post in galleryResponse) {
+        projects.add({
+          'type': 'gallery',
+          'data': GalleryPost(
+            userId: post['user_id'],
+            userName: userName,
+            imageUrl: post['image_url'] ?? '',
+            description: post['description'] ?? '',
+            likeCount: post['like_count'] ?? 0,
+            avatarUrl: avatarUrl,
+          ),
+          'created_at': post['created_at'],
+        });
+      }
+
+      // Sort by created_at descending
+      projects.sort((a, b) {
+        final aTime = DateTime.parse(a['created_at'] ?? '2000-01-01');
+        final bTime = DateTime.parse(b['created_at'] ?? '2000-01-01');
+        return bTime.compareTo(aTime);
+      });
+
+      if (mounted) {
+        setState(() {
+          _userProjects = projects;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user projects: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final myPosts = allPosts
-        .where((post) => post.userName == userName)
-        .toList();
 
     return SingleChildScrollView(
       child: Padding(
@@ -38,7 +163,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              userName,
+              widget.userName,
               textAlign: TextAlign.center,
               style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -54,7 +179,11 @@ class ProfileScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatItem('12', 'Creations', textTheme),
+                _buildStatItem(
+                  _userProjects.length.toString(),
+                  'Creations',
+                  textTheme,
+                ),
                 _buildStatItem('5', 'Following', textTheme),
                 _buildStatItem('128', 'Followers', textTheme),
               ],
@@ -75,7 +204,14 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _buildSectionTitle('My Projects', textTheme),
             const SizedBox(height: 12),
-            myPosts.isEmpty
+            _isLoading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _userProjects.isEmpty
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 32.0),
@@ -91,24 +227,86 @@ class ProfileScreen extends StatelessWidget {
                           crossAxisSpacing: 8,
                           mainAxisSpacing: 8,
                         ),
-                    itemCount: myPosts.length,
+                    itemCount: _userProjects.length,
                     itemBuilder: (context, index) {
-                      final post = myPosts[index];
-                      // MODIFIED: Wrapped with GestureDetector to make it clickable
+                      final project = _userProjects[index];
+                      final type = project['type'] as String;
+
                       return GestureDetector(
                         onTap: () {
-                          // Navigate to the detail screen for the tapped post
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  GalleryDetailScreen(post: post),
-                            ),
-                          );
+                          if (type == 'tutorial') {
+                            final tutorial = project['data'] as Tutorial;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TutorialDetailScreen(
+                                  tutorial: tutorial,
+                                  allPosts: widget.allPosts,
+                                ),
+                              ),
+                            );
+                          } else {
+                            final post = project['data'] as GalleryPost;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GalleryDetailScreen(
+                                  post: post,
+                                  allPosts: widget.allPosts,
+                                ),
+                              ),
+                            );
+                          }
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
-                          child: Image.asset(post.imageUrl, fit: BoxFit.cover),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // Display image based on type
+                              type == 'tutorial'
+                                  ? Image.network(
+                                      (project['data'] as Tutorial).imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                                color: Colors.grey.shade300,
+                                                child: const Icon(
+                                                  Icons.video_library,
+                                                ),
+                                              ),
+                                    )
+                                  : Image.network(
+                                      (project['data'] as GalleryPost).imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                                color: Colors.grey.shade300,
+                                                child: const Icon(Icons.image),
+                                              ),
+                                    ),
+                              // Video icon overlay for tutorials
+                              if (type == 'tutorial')
+                                Positioned(
+                                  bottom: 4,
+                                  right: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Icon(
+                                      Icons.play_arrow,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       );
                     },

@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
+import 'creator_profile_screen.dart';
 
 class GalleryDetailScreen extends StatefulWidget {
   final GalleryPost post;
+  final List<GalleryPost>? allPosts;
 
-  const GalleryDetailScreen({super.key, required this.post});
+  const GalleryDetailScreen({super.key, required this.post, this.allPosts});
 
   @override
   State<GalleryDetailScreen> createState() => _GalleryDetailScreenState();
@@ -424,30 +427,66 @@ class _GalleryDetailScreenState extends State<GalleryDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.teal.shade100,
-                        child: Text(
-                          widget.post.userName.isNotEmpty
-                              ? widget.post.userName[0]
-                              : 'U',
-                          style: TextStyle(
+                  InkWell(
+                    onTap: () {
+                      if (widget.allPosts == null) return;
+
+                      final currentUserId =
+                          Supabase.instance.client.auth.currentUser?.id;
+
+                      // Check if the current user is the post creator
+                      if (currentUserId == widget.post.userId) {
+                        // Navigate back to main screen (Profile tab)
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst);
+                      } else {
+                        // Navigate to creator's profile (CreatorProfileScreen)
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CreatorProfileScreen(
+                              userName: widget.post.userName,
+                              allPosts: widget.allPosts!,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.teal.shade100,
+                          backgroundImage:
+                              widget.post.avatarUrl != null &&
+                                  widget.post.avatarUrl!.isNotEmpty
+                              ? NetworkImage(widget.post.avatarUrl!)
+                              : null,
+                          child:
+                              widget.post.avatarUrl == null ||
+                                  widget.post.avatarUrl!.isEmpty
+                              ? Text(
+                                  widget.post.userName.isNotEmpty
+                                      ? widget.post.userName[0]
+                                      : 'U',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.teal.shade800,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          widget.post.userName,
+                          style: const TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.teal.shade800,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        widget.post.userName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(

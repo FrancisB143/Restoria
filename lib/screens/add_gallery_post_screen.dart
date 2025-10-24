@@ -1,9 +1,11 @@
 // lib/screens/add_gallery_post_screen.dart
 
 import 'dart:io'; // Add this line back
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 
 class AddGalleryPostScreen extends StatefulWidget {
@@ -17,8 +19,10 @@ class AddGalleryPostScreen extends StatefulWidget {
 class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  final _supabase = Supabase.instance.client;
 
   XFile? _selectedImageXFile;
+  bool _isUploading = false;
 
   @override
   void dispose() {
@@ -29,6 +33,9 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
   Future<void> _pickImage() async {
     final pickedImage = await ImagePicker().pickImage(
       source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
     );
     if (pickedImage == null) return;
     setState(() {
@@ -36,7 +43,7 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
     });
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_selectedImageXFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a photo of your creation.')),
@@ -44,14 +51,137 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
       return;
     }
 
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isUploading = true);
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not authenticated'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Upload image to Supabase Storage
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final imageBytes = await _selectedImageXFile!.readAsBytes();
+      final imagePath = '${user.id}/${timestamp}_${_selectedImageXFile!.name}';
+
+      await _supabase.storage
+          .from('gallery-images')
+          .uploadBinary(
+            imagePath,
+            imageBytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      final imageUrl = _supabase.storage
+          .from('gallery-images')
+          .getPublicUrl(imagePath);
+
+      // Get user profile name
+      String userName = widget.userName;
+      String avatarUrl = 'assets/images/avatar1.png';
+
+      try {
+        final profileResponse = await _supabase
+            .from('profiles')
+            .select('name, avatar_url')
+            .eq('id', user.id)
+            .single();
+
+        userName = profileResponse['name'] as String? ?? widget.userName;
+        if (profileResponse.containsKey('avatar_url')) {
+          avatarUrl =
+              profileResponse['avatar_url'] as String? ??
+              'assets/images/avatar1.png';
+        }
+      } catch (profileError) {
+        print('Error fetching profile: $profileError');
+
+        // Profile doesn't exist, create it
+        try {
+          final userEmail = user.email ?? '';
+          final userMetadata = user.userMetadata;
+          userName = userMetadata?['name'] as String? ?? widget.userName;
+
+          print('Creating profile for user ${user.id} with name: $userName');
+
+          await _supabase.from('profiles').insert({
+            'id': user.id,
+            'name': userName,
+            'email': userEmail,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+
+          print('Profile created successfully');
+        } catch (createError) {
+          print('Error creating profile: $createError');
+          userName = widget.userName;
+        }
+      }
+
+      // Insert gallery post into database
+      final postData = {
+        'user_id': user.id,
+        'description': _descriptionController.text.trim(),
+        'image_url': imageUrl,
+        'like_count': 0,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await _supabase.from('gallery_posts').insert(postData);
+
+      // Create new gallery post object
       final newPost = GalleryPost(
-        userName: widget.userName,
-        description: _descriptionController.text,
-        imageUrl: _selectedImageXFile!.path,
+        userId: user.id,
+        userName: userName,
+        description: _descriptionController.text.trim(),
+        imageUrl: imageUrl,
         likeCount: 0,
+        avatarUrl: avatarUrl,
       );
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      // Return to previous screen with new post
       Navigator.of(context).pop(newPost);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Post shared successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      // Close loading dialog
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to share post: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
@@ -96,7 +226,10 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
                               color: Colors.grey,
                             ),
                             SizedBox(height: 8),
-                            Text('Tap to add a photo'),
+                            Text(
+                              'Tap to add image of your invention',
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           ],
                         ),
                 ),

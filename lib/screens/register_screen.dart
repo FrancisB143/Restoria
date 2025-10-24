@@ -67,6 +67,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (response.user != null) {
+        // Create profile in database
+        try {
+          await _supabase.from('profiles').insert({
+            'id': response.user!.id,
+            'name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+        } catch (profileError) {
+          print('Error creating profile: $profileError');
+          // Continue anyway - user can set up profile later
+        }
+
         // Registration successful
         _showSuccess('Registration successful! You can now login.');
 

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
 import 'creator_profile_screen.dart';
@@ -255,22 +256,45 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
                       const SizedBox(height: 16),
                       InkWell(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CreatorProfileScreen(
-                                userName: widget.tutorial.creatorName,
-                                allPosts: widget.allPosts,
+                          final currentUserId =
+                              Supabase.instance.client.auth.currentUser?.id;
+
+                          // Check if the current user is the tutorial creator
+                          if (currentUserId == widget.tutorial.userId) {
+                            // Navigate back to main screen and switch to Profile tab
+                            Navigator.of(
+                              context,
+                            ).popUntil((route) => route.isFirst);
+                          } else {
+                            // Navigate to creator's profile (CreatorProfileScreen)
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CreatorProfileScreen(
+                                  userName: widget.tutorial.creatorName,
+                                  allPosts: widget.allPosts,
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          }
                         },
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 18,
-                              backgroundImage: NetworkImage(
-                                widget.tutorial.creatorAvatarUrl,
+                              backgroundColor: _getAvatarColor(
+                                widget.tutorial.creatorName,
+                              ),
+                              child: Text(
+                                widget.tutorial.creatorName.isNotEmpty
+                                    ? widget.tutorial.creatorName[0]
+                                          .toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -693,6 +717,26 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
         ],
       ),
     );
+  }
+
+  Color _getAvatarColor(String name) {
+    // Generate a consistent color based on the name
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.cyan,
+      Colors.amber,
+    ];
+
+    // Use the first character's code to pick a color
+    final index = name.isNotEmpty ? name.codeUnitAt(0) % colors.length : 0;
+    return colors[index];
   }
 
   Widget _buildCommentInputArea() {

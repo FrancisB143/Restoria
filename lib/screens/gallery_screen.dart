@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 import 'gallery_detail_screen.dart';
 
-class GalleryScreen extends StatelessWidget {
+class GalleryScreen extends StatefulWidget {
   final List<GalleryPost> posts;
   final Future<void> Function() onAdd;
   final Function(GalleryPost)? onAddPost;
@@ -15,6 +16,99 @@ class GalleryScreen extends StatelessWidget {
     required this.onAdd,
     this.onAddPost,
   });
+
+  @override
+  State<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends State<GalleryScreen> {
+  final _supabase = Supabase.instance.client;
+  List<GalleryPost> _databasePosts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGalleryPosts();
+  }
+
+  Future<void> _loadGalleryPosts() async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Fetch gallery posts from database
+      final response = await _supabase
+          .from('gallery_posts')
+          .select()
+          .order('created_at', ascending: false);
+
+      final posts = <GalleryPost>[];
+
+      for (final post in response) {
+        try {
+          // Fetch user profile for each post
+          final profileResponse = await _supabase
+              .from('profiles')
+              .select('name, avatar_url')
+              .eq('id', post['user_id'])
+              .single();
+
+          posts.add(
+            GalleryPost(
+              userId: post['user_id'] as String?,
+              userName: profileResponse['name'] ?? 'Anonymous',
+              imageUrl: post['image_url'] ?? '',
+              description: post['description'] ?? '',
+              likeCount: post['like_count'] ?? 0,
+              avatarUrl: profileResponse['avatar_url'],
+            ),
+          );
+        } catch (e) {
+          // If profile fetch fails, add post with just basic info
+          try {
+            final profileResponse = await _supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', post['user_id'])
+                .single();
+
+            posts.add(
+              GalleryPost(
+                userId: post['user_id'] as String?,
+                userName: profileResponse['name'] ?? 'Anonymous',
+                imageUrl: post['image_url'] ?? '',
+                description: post['description'] ?? '',
+                likeCount: post['like_count'] ?? 0,
+              ),
+            );
+          } catch (e2) {
+            // If even name fetch fails, use anonymous
+            posts.add(
+              GalleryPost(
+                userId: post['user_id'] as String?,
+                userName: 'Anonymous',
+                imageUrl: post['image_url'] ?? '',
+                description: post['description'] ?? '',
+                likeCount: post['like_count'] ?? 0,
+              ),
+            );
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _databasePosts = posts;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading gallery posts: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,18 +270,23 @@ class GalleryScreen extends StatelessWidget {
           // Sample Posts
           _buildSampleCommunityPosts(context),
 
-          // User's Posts (if any)
-          // REMOVED "My Creations" header
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              final post = posts[index];
-              return _buildCommunityPost(context, post, index);
-            },
-          ),
+          // Database Posts (User uploads)
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(40.0),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_databasePosts.isNotEmpty)
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              itemCount: _databasePosts.length,
+              itemBuilder: (context, index) {
+                final post = _databasePosts[index];
+                return _buildCommunityPost(context, post, index);
+              },
+            ),
         ],
       ),
     );
@@ -252,7 +351,10 @@ class GalleryScreen extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => GalleryDetailScreen(post: post),
+            builder: (context) => GalleryDetailScreen(
+              post: post,
+              allPosts: [..._databasePosts, ...widget.posts],
+            ),
           ),
         );
       },
@@ -281,13 +383,19 @@ class GalleryScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 20,
                     backgroundColor: _getAvatarColor(index),
-                    child: Text(
-                      post.userName[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    backgroundImage:
+                        post.avatarUrl != null && post.avatarUrl!.isNotEmpty
+                        ? NetworkImage(post.avatarUrl!)
+                        : null,
+                    child: post.avatarUrl == null || post.avatarUrl!.isEmpty
+                        ? Text(
+                            post.userName[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -534,7 +642,10 @@ class GalleryScreen extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => GalleryDetailScreen(post: tempPost),
+            builder: (context) => GalleryDetailScreen(
+              post: tempPost,
+              allPosts: [..._databasePosts, ...widget.posts],
+            ),
           ),
         );
       },
@@ -891,11 +1002,14 @@ class GalleryScreen extends StatelessWidget {
       likeCount: 0,
     );
 
-    if (onAddPost != null) {
-      onAddPost!(newPost);
+    if (widget.onAddPost != null) {
+      widget.onAddPost!(newPost);
     }
 
     Navigator.pop(context);
+
+    // Reload database posts after adding
+    _loadGalleryPosts();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
