@@ -7,6 +7,7 @@ class GalleryPost {
   final String description; // Add a description for the post
   final int likeCount;
   final String? avatarUrl; // Optional avatar URL
+  final DateTime? createdAt; // Timestamp of when the post was created
 
   GalleryPost({
     this.userId,
@@ -15,5 +16,6 @@ class GalleryPost {
     required this.description,
     required this.likeCount,
     this.avatarUrl,
+    this.createdAt,
   });
 }

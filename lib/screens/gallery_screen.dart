@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 import 'gallery_detail_screen.dart';
+import 'add_gallery_post_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
   final List<GalleryPost> posts;
@@ -61,6 +62,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
               description: post['description'] ?? '',
               likeCount: post['like_count'] ?? 0,
               avatarUrl: profileResponse['avatar_url'],
+              createdAt: post['created_at'] != null
+                  ? DateTime.parse(post['created_at'])
+                  : null,
             ),
           );
         } catch (e) {
@@ -79,6 +83,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 imageUrl: post['image_url'] ?? '',
                 description: post['description'] ?? '',
                 likeCount: post['like_count'] ?? 0,
+                createdAt: post['created_at'] != null
+                    ? DateTime.parse(post['created_at'])
+                    : null,
               ),
             );
           } catch (e2) {
@@ -90,6 +97,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 imageUrl: post['image_url'] ?? '',
                 description: post['description'] ?? '',
                 likeCount: post['like_count'] ?? 0,
+                createdAt: post['created_at'] != null
+                    ? DateTime.parse(post['created_at'])
+                    : null,
               ),
             );
           }
@@ -192,7 +202,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () => _showNewProjectDialog(context),
+                    onPressed: () => _navigateToAddGalleryPost(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.green.shade600,
@@ -226,7 +236,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     icon: Icons.add,
                     label: 'New Project',
                     subtitle: 'Start a new\ncreation',
-                    onTap: () => _showNewProjectDialog(context),
+                    onTap: () => _navigateToAddGalleryPost(context),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -267,29 +277,114 @@ class _GalleryScreenState extends State<GalleryScreen> {
             ),
           ),
 
-          // Sample Posts
-          _buildSampleCommunityPosts(context),
-
-          // Database Posts (User uploads)
+          // Combined Gallery (Database Posts + Sample Posts)
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.all(40.0),
               child: Center(child: CircularProgressIndicator()),
             )
-          else if (_databasePosts.isNotEmpty)
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              itemCount: _databasePosts.length,
-              itemBuilder: (context, index) {
-                final post = _databasePosts[index];
-                return _buildCommunityPost(context, post, index);
-              },
-            ),
+          else
+            _buildCombinedGallery(context),
         ],
       ),
     );
+  }
+
+  Widget _buildCombinedGallery(BuildContext context) {
+    // Combine database posts with sample posts
+    // Database posts come first (newest), then sample posts
+    final allPosts = <dynamic>[];
+
+    // Add database posts first (these are real user posts from Supabase)
+    allPosts.addAll(_databasePosts);
+
+    // Add sample posts (static examples for demonstration)
+    allPosts.addAll(_getSamplePostsData());
+
+    if (allPosts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(40.0),
+        child: Center(
+          child: Text(
+            'No posts yet. Be the first to share!',
+            style: TextStyle(color: Colors.grey, fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      itemCount: allPosts.length,
+      itemBuilder: (context, index) {
+        final post = allPosts[index];
+
+        // Check if it's a GalleryPost (from database) or sample data (Map)
+        if (post is GalleryPost) {
+          return _buildCommunityPost(context, post, index);
+        } else if (post is Map<String, dynamic>) {
+          return _buildSampleCommunityPost(context, post, index);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  List<Map<String, dynamic>> _getSamplePostsData() {
+    return [
+      {
+        'userName': 'Circuit Breaker',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery1.jpg',
+        'description':
+            'Rock your creativity by turning old CDs, cotton balls, and simple materials into a one-of-a-kind guitar art piece! This eco-friendly craft proves that music isn\'t the only thing a guitar can inspire—it can also teach us how to reuse, recycle, and create beauty from waste.',
+        'likeCount': 134,
+        'timeAgo': '2 hours ago',
+        'avatarColor': Colors.blue,
+      },
+      {
+        'userName': 'Eco Innovator',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery2.jpg',
+        'description':
+            'Transform unused keyboard keys into a creative photo frame that gives your memories a sustainable edge! Instead of throwing away broken keyboards, turn them into something meaningful—because every picture deserves a frame as unique as the story it holds.',
+        'likeCount': 97,
+        'timeAgo': '5 hours ago',
+        'avatarColor': Colors.green,
+      },
+      {
+        'userName': 'Pixel Perfect',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery3.jpg',
+        'description':
+            'Give your old keyboard a new purpose by turning it into a handy organizer for scissors, pencils, and pens! Instead of ending up as e-waste, it becomes a functional desk accessory that keeps your workspace neat while promoting creativity and sustainability.',
+        'likeCount': 210,
+        'timeAgo': '1 day ago',
+        'avatarColor': Colors.purple,
+      },
+      {
+        'userName': 'Gadget Recycler',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery4.jpg',
+        'description':
+            'Another mouse creation. This little guy is watching you! 👀',
+        'likeCount': 76,
+        'timeAgo': '2 days ago',
+        'avatarColor': Colors.orange,
+      },
+      {
+        'userName': 'Green Tech',
+        'profilePicture': null,
+        'imageUrl': 'assets/images/gallery5.jpg',
+        'description':
+            'An old keyboard has been repurposed into a neat desk organizer. No more clutter!',
+        'likeCount': 188,
+        'timeAgo': '3 days ago',
+        'avatarColor': Colors.teal,
+      },
+    ];
   }
 
   Widget _buildActionButton(
@@ -344,7 +439,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     GalleryPost post,
     int index,
   ) {
-    final timeAgo = _getTimeAgo(index);
+    final timeAgo = _formatTimeAgo(post.createdAt);
 
     return GestureDetector(
       onTap: () {
@@ -382,7 +477,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: _getAvatarColor(index),
+                    backgroundColor: _getAvatarColorForUser(
+                      post.userId,
+                      post.userName,
+                    ),
                     backgroundImage:
                         post.avatarUrl != null && post.avatarUrl!.isNotEmpty
                         ? NetworkImage(post.avatarUrl!)
@@ -541,6 +639,35 @@ class _GalleryScreenState extends State<GalleryScreen> {
     return timeOptions[index % timeOptions.length];
   }
 
+  String _formatTimeAgo(DateTime? dateTime) {
+    if (dateTime == null) return 'Just now';
+
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      final minutes = difference.inMinutes;
+      return '$minutes ${minutes == 1 ? 'minute' : 'minutes'} ago';
+    } else if (difference.inHours < 24) {
+      final hours = difference.inHours;
+      return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inDays < 7) {
+      final days = difference.inDays;
+      return '$days ${days == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '$weeks ${weeks == 1 ? 'week' : 'weeks'} ago';
+    } else if (difference.inDays < 365) {
+      final months = (difference.inDays / 30).floor();
+      return '$months ${months == 1 ? 'month' : 'months'} ago';
+    } else {
+      final years = (difference.inDays / 365).floor();
+      return '$years ${years == 1 ? 'year' : 'years'} ago';
+    }
+  }
+
   Color _getAvatarColor(int index) {
     final colors = [
       Colors.blue,
@@ -551,6 +678,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
       Colors.teal,
     ];
     return colors[index % colors.length];
+  }
+
+  Color _getAvatarColorForUser(String? userId, String userName) {
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+    ];
+    // Use userId or userName to get a consistent color for each user
+    final hashCode = (userId ?? userName).hashCode;
+    return colors[hashCode.abs() % colors.length];
   }
 
   int _getCommentCount(int index) {
@@ -774,249 +915,54 @@ class _GalleryScreenState extends State<GalleryScreen> {
     );
   }
 
-  void _showNewProjectDialog(BuildContext context) {
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    String selectedImagePath = 'assets/images/lamp.png';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'New Project',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        _saveNewProject(
-                          context,
-                          titleController.text,
-                          descriptionController.text,
-                          selectedImagePath,
-                        );
-                      },
-                      child: const Text('Share'),
-                    ),
-                  ],
-                ),
-              ),
-              // Form content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Image selection
-                      Container(
-                        width: double.infinity,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(
-                            selectedImagePath,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: () {
-                          _showProjectImageSelector(context, (imagePath) {
-                            setModalState(() {
-                              selectedImagePath = imagePath;
-                            });
-                          });
-                        },
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Change Image'),
-                      ),
-                      const SizedBox(height: 16),
-                      // Title field
-                      const Text(
-                        'Project Title',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: titleController,
-                        decoration: InputDecoration(
-                          hintText: 'What did you create?',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Description field
-                      const Text(
-                        'Description',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: descriptionController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          hintText: 'Tell us about your creation process...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showProjectImageSelector(
-    BuildContext context,
-    Function(String) onImageSelected,
-  ) {
-    final availableImages = [
-      'assets/images/gallery1.jpg',
-      'assets/images/gallery2.jpg',
-      'assets/images/gallery3.jpeg',
-      'assets/images/gallery4.jpeg',
-      'assets/images/gallery5.jpg',
-      'assets/images/lamp.png',
-      'assets/images/flashlight.png',
-      'assets/images/toaster_bookends.jpg',
-      'assets/images/cable_organize.jpg',
-      'assets/images/mouse_planter.jpg',
-      'assets/images/harddriveclock.jpg',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Select Project Image',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            GridView.builder(
-              shrinkWrap: true,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: availableImages.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    onImageSelected(availableImages[index]);
-                    Navigator.pop(context);
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      availableImages[index],
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _saveNewProject(
-    BuildContext context,
-    String title,
-    String description,
-    String imagePath,
-  ) {
-    if (title.isEmpty || description.isEmpty) {
+  Future<void> _navigateToAddGalleryPost(BuildContext context) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all fields'),
+          content: Text('Please log in to create a post'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    final newPost = GalleryPost(
-      userName: 'You',
-      imageUrl: imagePath,
-      description: description,
-      likeCount: 0,
-    );
-
-    if (widget.onAddPost != null) {
-      widget.onAddPost!(newPost);
+    // Get user name for the AddGalleryPostScreen
+    String userName = 'User';
+    try {
+      final profileResponse = await _supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+      userName = profileResponse['name'] ?? 'User';
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
     }
 
-    Navigator.pop(context);
-
-    // Reload database posts after adding
-    _loadGalleryPosts();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Project "$title" shared successfully!'),
-        backgroundColor: Colors.green,
+    // Navigate to AddGalleryPostScreen
+    final result = await Navigator.push<GalleryPost>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('New Project'),
+            backgroundColor: const Color(0xFF4CAF50),
+            foregroundColor: Colors.white,
+          ),
+          body: AddGalleryPostScreen(userName: userName),
+        ),
       ),
     );
+
+    // If a new post was created, reload the gallery
+    if (result != null) {
+      if (widget.onAddPost != null) {
+        widget.onAddPost!(result);
+      }
+      // Reload database posts to show the new post
+      await _loadGalleryPosts();
+    }
   }
 
   void _showGalleryOptions(BuildContext context) {

@@ -1,7 +1,6 @@
 // lib/screens/add_gallery_post_screen.dart
 
 import 'dart:io'; // Add this line back
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -80,17 +79,32 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
       final imageBytes = await _selectedImageXFile!.readAsBytes();
       final imagePath = '${user.id}/${timestamp}_${_selectedImageXFile!.name}';
 
-      await _supabase.storage
-          .from('gallery-images')
-          .uploadBinary(
-            imagePath,
-            imageBytes,
-            fileOptions: const FileOptions(upsert: true),
-          );
+      debugPrint('Attempting to upload image to: $imagePath');
+      debugPrint('Image size: ${imageBytes.length} bytes');
+
+      try {
+        await _supabase.storage
+            .from('gallery-images')
+            .uploadBinary(
+              imagePath,
+              imageBytes,
+              fileOptions: const FileOptions(
+                upsert: true,
+                contentType: 'image/*',
+              ),
+            );
+
+        debugPrint('Image uploaded successfully');
+      } catch (storageError) {
+        debugPrint('Storage upload error: $storageError');
+        throw Exception('Failed to upload image: $storageError');
+      }
 
       final imageUrl = _supabase.storage
           .from('gallery-images')
           .getPublicUrl(imagePath);
+
+      debugPrint('Image URL: $imageUrl');
 
       // Get user profile name
       String userName = widget.userName;
@@ -154,6 +168,7 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
         imageUrl: imageUrl,
         likeCount: 0,
         avatarUrl: avatarUrl,
+        createdAt: DateTime.now(),
       );
 
       // Close loading dialog
@@ -170,12 +185,49 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
       );
     } catch (e) {
       // Close loading dialog
-      Navigator.pop(context);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      debugPrint('Error creating post: $e');
+
+      String errorMessage = 'Failed to share post';
+
+      if (e.toString().contains('StorageException') ||
+          e.toString().contains('storage') ||
+          e.toString().contains('bucket')) {
+        errorMessage =
+            'Storage error: Please ensure the gallery-images bucket exists in Supabase Storage with public access enabled.';
+      } else if (e.toString().contains('authenticated')) {
+        errorMessage = 'Authentication error: Please log in again.';
+      } else if (e.toString().contains('network')) {
+        errorMessage = 'Network error: Please check your internet connection.';
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to share post: $e'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Details',
+            textColor: Colors.white,
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Error Details'),
+                  content: SingleChildScrollView(child: Text(e.toString())),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       );
     } finally {
@@ -227,14 +279,37 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Tap to add image of your invention',
-                              style: TextStyle(color: Colors.grey),
+                              'Add Image',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              if (_selectedImageXFile != null)
+                TextButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Change Image'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF4CAF50),
+                  ),
+                )
+              else
+                TextButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: const Text('Add Image'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF4CAF50),
+                  ),
+                ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
@@ -250,11 +325,16 @@ class _AddGalleryPostScreenState extends State<AddGalleryPostScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _submitForm,
-                icon: const Icon(Icons.share_outlined),
-                label: const Text('Share to Gallery'),
+                onPressed: _isUploading ? null : _submitForm,
+                icon: const Icon(Icons.check),
+                label: const Text('Confirm'),
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ],
