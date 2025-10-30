@@ -59,11 +59,13 @@ class _MainScreenState extends State<MainScreen> {
         allPosts: widget.galleryPosts,
         onAdd: widget.onAddTutorial,
         onAddTutorial: _addTutorialDirectly,
+        currentUserName: _userProfileName ?? widget.currentUserName,
       ),
       GalleryScreen(
         posts: widget.galleryPosts,
         onAdd: widget.onAddGalleryPost,
         onAddPost: _addGalleryPostDirectly,
+        currentUserName: _userProfileName ?? widget.currentUserName,
       ),
       const MessagesScreen(),
       ProfileScreen(

@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
 import 'creator_profile_screen.dart';
@@ -10,11 +9,13 @@ import 'creator_profile_screen.dart';
 class TutorialDetailScreen extends StatefulWidget {
   final Tutorial tutorial;
   final List<GalleryPost> allPosts;
+  final String? currentUserName; // Add optional currentUserName
 
   const TutorialDetailScreen({
     super.key,
     required this.tutorial,
     required this.allPosts,
+    this.currentUserName, // Make it optional for backward compatibility
   });
 
   @override
@@ -256,27 +257,19 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
                       const SizedBox(height: 16),
                       InkWell(
                         onTap: () {
-                          final currentUserId =
-                              Supabase.instance.client.auth.currentUser?.id;
-
-                          // Check if the current user is the tutorial creator
-                          if (currentUserId == widget.tutorial.userId) {
-                            // Navigate back to main screen and switch to Profile tab
-                            Navigator.of(
-                              context,
-                            ).popUntil((route) => route.isFirst);
-                          } else {
-                            // Navigate to creator's profile (CreatorProfileScreen)
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CreatorProfileScreen(
-                                  userName: widget.tutorial.creatorName,
-                                  allPosts: widget.allPosts,
-                                ),
+                          // Navigate to creator's profile (CreatorProfileScreen)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CreatorProfileScreen(
+                                userName: widget.tutorial.creatorName,
+                                allPosts: widget.allPosts,
+                                currentUserName:
+                                    widget.currentUserName ?? 'Guest',
+                                creatorUserId: widget.tutorial.userId,
                               ),
-                            );
-                          }
+                            ),
+                          );
                         },
                         child: Row(
                           children: [

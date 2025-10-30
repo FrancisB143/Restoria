@@ -4,6 +4,7 @@ import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
 import 'gallery_detail_screen.dart';
 import 'tutorial_detail_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userName;
@@ -23,10 +24,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _supabase = Supabase.instance.client;
   List<dynamic> _userProjects = [];
   bool _isLoading = true;
+  String _userName = '';
+  String _userBio =
+      'Turning e-waste into e-wonderful! ♻️✨ Creator and seller of unique upcycled art.';
+  String? _avatarUrl;
 
   @override
   void initState() {
     super.initState();
+    _userName = widget.userName;
     _loadUserProjects();
   }
 
@@ -43,30 +49,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Fetch user profile data
       String userName = widget.userName;
       String avatarUrl = 'assets/images/avatar1.png';
+      String bio =
+          'Turning e-waste into e-wonderful! ♻️✨ Creator and seller of unique upcycled art.';
 
       try {
         final profileResponse = await _supabase
             .from('profiles')
-            .select('name, avatar_url')
+            .select('name, avatar_url, bio')
             .eq('id', user.id)
             .single();
 
         userName = profileResponse['name'] as String? ?? widget.userName;
+        bio = profileResponse['bio'] as String? ?? bio;
         if (profileResponse.containsKey('avatar_url') &&
             profileResponse['avatar_url'] != null) {
           avatarUrl = profileResponse['avatar_url'] as String;
         }
       } catch (profileError) {
         debugPrint('Error fetching profile: $profileError');
-        // Try fetching just name if avatar_url doesn't exist
+        // Try fetching without bio field if it doesn't exist
         try {
           final nameResponse = await _supabase
               .from('profiles')
-              .select('name')
+              .select('name, avatar_url')
               .eq('id', user.id)
               .single();
 
           userName = nameResponse['name'] as String? ?? widget.userName;
+          if (nameResponse.containsKey('avatar_url') &&
+              nameResponse['avatar_url'] != null) {
+            avatarUrl = nameResponse['avatar_url'] as String;
+          }
         } catch (nameError) {
           debugPrint('Error fetching name: $nameError');
         }
@@ -129,6 +142,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           _userProjects = projects;
+          _userName = userName;
+          _userBio = bio;
+          _avatarUrl = avatarUrl;
           _isLoading = false;
         });
       }
@@ -155,15 +171,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             CircleAvatar(
               radius: 54,
               backgroundColor: colorScheme.primary,
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 50,
-                // MODIFIED: Changed to a local asset image
-                backgroundImage: AssetImage('assets/images/avatar1.png'),
+                backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                    ? (_avatarUrl!.startsWith('assets/')
+                          ? AssetImage(_avatarUrl!) as ImageProvider
+                          : NetworkImage(_avatarUrl!))
+                    : const AssetImage('assets/images/avatar1.png'),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              widget.userName,
+              _userName,
               textAlign: TextAlign.center,
               style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -171,7 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Turning e-waste into e-wonderful! ♻️✨ Creator and seller of unique upcycled art.',
+              _userBio,
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium,
             ),
@@ -190,7 +209,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
             OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditProfileScreen(
+                      currentName: _userName,
+                      currentBio: _userBio,
+                      currentAvatarUrl: _avatarUrl,
+                    ),
+                  ),
+                );
+
+                // If profile was updated, reload data
+                if (result != null && mounted) {
+                  setState(() {
+                    if (result['name'] != null) {
+                      _userName = result['name'];
+                    }
+                    if (result['bio'] != null) {
+                      _userBio = result['bio'];
+                    }
+                    if (result.containsKey('avatar_url')) {
+                      _avatarUrl = result['avatar_url'];
+                    }
+                  });
+                }
+              },
               icon: const Icon(Icons.edit_outlined),
               label: const Text('Edit Profile'),
               style: OutlinedButton.styleFrom(
@@ -242,6 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 builder: (context) => TutorialDetailScreen(
                                   tutorial: tutorial,
                                   allPosts: widget.allPosts,
+                                  currentUserName: widget.userName,
                                 ),
                               ),
                             );
@@ -253,6 +299,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 builder: (context) => GalleryDetailScreen(
                                   post: post,
                                   allPosts: widget.allPosts,
+                                  currentUserName: widget.userName,
                                 ),
                               ),
                             );

@@ -10,12 +10,14 @@ class GalleryScreen extends StatefulWidget {
   final List<GalleryPost> posts;
   final Future<void> Function() onAdd;
   final Function(GalleryPost)? onAddPost;
+  final String? currentUserName; // Add currentUserName
 
   const GalleryScreen({
     super.key,
     required this.posts,
     required this.onAdd,
     this.onAddPost,
+    this.currentUserName, // Make it optional
   });
 
   @override
@@ -449,6 +451,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             builder: (context) => GalleryDetailScreen(
               post: post,
               allPosts: [..._databasePosts, ...widget.posts],
+              currentUserName: widget.currentUserName,
             ),
           ),
         );
@@ -786,6 +789,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             builder: (context) => GalleryDetailScreen(
               post: tempPost,
               allPosts: [..._databasePosts, ...widget.posts],
+              currentUserName: widget.currentUserName,
             ),
           ),
         );

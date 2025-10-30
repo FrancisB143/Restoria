@@ -12,6 +12,7 @@ class LearnScreen extends StatefulWidget {
   final List<GalleryPost> allPosts;
   final Future<void> Function() onAdd;
   final Function(Tutorial) onAddTutorial;
+  final String? currentUserName; // Add currentUserName
 
   const LearnScreen({
     super.key,
@@ -19,6 +20,7 @@ class LearnScreen extends StatefulWidget {
     required this.allPosts,
     required this.onAdd,
     required this.onAddTutorial,
+    this.currentUserName, // Make it optional
   });
 
   @override
@@ -732,6 +734,7 @@ class _LearnScreenState extends State<LearnScreen> {
                 builder: (context) => TutorialDetailScreen(
                   tutorial: tutorial,
                   allPosts: widget.allPosts,
+                  currentUserName: widget.currentUserName,
                 ),
               ),
             );
