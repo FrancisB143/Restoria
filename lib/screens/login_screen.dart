@@ -41,37 +41,73 @@ class _LoginScreenState extends State<LoginScreen>
 
     _animationController.forward();
 
-    // Listen for OAuth callbacks
+    // Don't auto-login on init - user should manually login
+    // _checkCurrentSession(); // Commented out to prevent auto-login
+
+    // Listen for OAuth callbacks - but only handle them if we initiated the login
     _supabase.auth.onAuthStateChange.listen((data) {
       final event = data.event;
-      if (event == AuthChangeEvent.signedIn) {
+      print('Auth state changed: $event');
+
+      // Only handle signedIn events if we're still mounted and on the login screen
+      // This prevents interfering with the registration flow
+      if (event == AuthChangeEvent.signedIn && mounted && _isLoading) {
+        print('User signed in during login attempt, handling auth success...');
         _handleAuthSuccess();
+      } else if (event == AuthChangeEvent.signedIn) {
+        print('User signed in but not from this login screen, ignoring...');
       }
     });
   }
 
+  Future<void> _checkCurrentSession() async {
+    try {
+      final session = _supabase.auth.currentSession;
+      if (session != null && mounted) {
+        print('Found existing session, navigating...');
+        _handleAuthSuccess();
+      }
+    } catch (e) {
+      print('Error checking session: $e');
+    }
+  }
+
   Future<void> _handleAuthSuccess() async {
+    print('handleAuthSuccess called');
     final user = _supabase.auth.currentUser;
+    print('Current user: ${user?.id}');
+
     if (user != null && mounted) {
+      setState(() => _isLoading = false);
+
       // Check if profile exists
       try {
+        print('Checking if profile exists for user: ${user.id}');
         final profileData = await _supabase
             .from('profiles')
             .select()
             .eq('id', user.id)
             .maybeSingle();
 
+        print('Profile data: $profileData');
+
         if (!mounted) return;
 
         if (profileData == null) {
           // No profile exists, navigate to profile setup
+          print('No profile found, navigating to profile setup');
           Navigator.pushReplacementNamed(context, '/profile-setup');
         } else {
           // Profile exists, navigate to main
+          print('Profile exists, navigating to main screen');
           Navigator.pushReplacementNamed(context, '/main');
         }
       } catch (e) {
-        _showError('Error checking profile: $e');
+        print('Error checking profile: $e');
+        if (mounted) {
+          _showError('Error checking profile: $e');
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -150,50 +186,36 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
 
     try {
-      // Sign in with Google OAuth using proper Supabase callback
+      print('Starting Google OAuth sign-in...');
+      // Use the HTTPS deep link that's configured in AndroidManifest
       final bool result = await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
+        redirectTo: 'https://wkayjcularwgjctoxzwt.supabase.co/auth/v1/callback',
         authScreenLaunchMode: LaunchMode.externalApplication,
       );
+
+      print('OAuth result: $result');
 
       if (!result) {
         if (mounted) {
           _showError('Google sign-in was cancelled');
         }
+        setState(() => _isLoading = false);
         return;
       }
 
-      // Wait a moment for the auth state to update
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (!mounted) return;
-
-      // Check if user is authenticated
-      final user = _supabase.auth.currentUser;
-      if (user != null) {
-        // Check if profile exists
-        final profileData = await _supabase
-            .from('profiles')
-            .select()
-            .eq('id', user.id)
-            .maybeSingle();
-
-        if (!mounted) return;
-
-        if (profileData == null) {
-          // No profile exists, navigate to profile setup
-          Navigator.pushReplacementNamed(context, '/profile-setup');
-        } else {
-          // Profile exists, navigate to main
-          Navigator.pushReplacementNamed(context, '/main');
-        }
-      }
+      // The auth state listener will handle the navigation
+      // Don't set loading to false here, let the auth success handler do it
     } on AuthException catch (e) {
-      _showError(e.message);
-    } catch (e) {
-      _showError('Google sign-in failed: $e');
-    } finally {
+      print('Auth exception: ${e.message}');
       if (mounted) {
+        _showError(e.message);
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      print('Error during Google sign-in: $e');
+      if (mounted) {
+        _showError('Google sign-in failed: $e');
         setState(() => _isLoading = false);
       }
     }

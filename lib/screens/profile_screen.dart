@@ -161,206 +161,276 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 8),
-            CircleAvatar(
-              radius: 54,
-              backgroundColor: colorScheme.primary,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                    ? (_avatarUrl!.startsWith('assets/')
-                          ? AssetImage(_avatarUrl!) as ImageProvider
-                          : NetworkImage(_avatarUrl!))
-                    : const AssetImage('assets/images/avatar1.png'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _userName,
-              textAlign: TextAlign.center,
-              style: textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _userBio,
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildStatItem(
-                  _userProjects.length.toString(),
-                  'Creations',
-                  textTheme,
+                const SizedBox(height: 8),
+                CircleAvatar(
+                  radius: 54,
+                  backgroundColor: colorScheme.primary,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage:
+                        _avatarUrl != null && _avatarUrl!.isNotEmpty
+                        ? (_avatarUrl!.startsWith('assets/')
+                              ? AssetImage(_avatarUrl!) as ImageProvider
+                              : NetworkImage(_avatarUrl!))
+                        : const AssetImage('assets/images/avatar1.png'),
+                  ),
                 ),
-                _buildStatItem('5', 'Following', textTheme),
-                _buildStatItem('128', 'Followers', textTheme),
+                const SizedBox(height: 16),
+                Text(
+                  _userName,
+                  textAlign: TextAlign.center,
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _userBio,
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildStatItem(
+                      _userProjects.length.toString(),
+                      'Creations',
+                      textTheme,
+                    ),
+                    _buildStatItem('5', 'Following', textTheme),
+                    _buildStatItem('128', 'Followers', textTheme),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditProfileScreen(
+                          currentName: _userName,
+                          currentBio: _userBio,
+                          currentAvatarUrl: _avatarUrl,
+                        ),
+                      ),
+                    );
+
+                    // If profile was updated, reload data
+                    if (result != null && mounted) {
+                      setState(() {
+                        if (result['name'] != null) {
+                          _userName = result['name'];
+                        }
+                        if (result['bio'] != null) {
+                          _userBio = result['bio'];
+                        }
+                        if (result.containsKey('avatar_url')) {
+                          _avatarUrl = result['avatar_url'];
+                        }
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit Profile'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colorScheme.primary,
+                    side: BorderSide(color: colorScheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                _buildSectionTitle('My Projects', textTheme),
+                const SizedBox(height: 12),
+                _isLoading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : _userProjects.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32.0),
+                          child: Text("You haven't posted any projects yet."),
+                        ),
+                      )
+                    : GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                            ),
+                        itemCount: _userProjects.length,
+                        itemBuilder: (context, index) {
+                          final project = _userProjects[index];
+                          final type = project['type'] as String;
+
+                          return GestureDetector(
+                            onTap: () {
+                              if (type == 'tutorial') {
+                                final tutorial = project['data'] as Tutorial;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => TutorialDetailScreen(
+                                      tutorial: tutorial,
+                                      allPosts: widget.allPosts,
+                                      currentUserName: widget.userName,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                final post = project['data'] as GalleryPost;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => GalleryDetailScreen(
+                                      post: post,
+                                      allPosts: widget.allPosts,
+                                      currentUserName: widget.userName,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  // Display image based on type
+                                  type == 'tutorial'
+                                      ? Image.network(
+                                          (project['data'] as Tutorial)
+                                              .imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
+                                                    color: Colors.grey.shade300,
+                                                    child: const Icon(
+                                                      Icons.video_library,
+                                                    ),
+                                                  ),
+                                        )
+                                      : Image.network(
+                                          (project['data'] as GalleryPost)
+                                              .imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
+                                                    color: Colors.grey.shade300,
+                                                    child: const Icon(
+                                                      Icons.image,
+                                                    ),
+                                                  ),
+                                        ),
+                                  // Video icon overlay for tutorials
+                                  if (type == 'tutorial')
+                                    Positioned(
+                                      bottom: 4,
+                                      right: 4,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.6),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.play_arrow,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ],
             ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
+          ),
+        ),
+        // Logout button in upper right corner
+        Positioned(
+          top: 8,
+          right: 8,
+          child: SafeArea(
+            child: IconButton(
               onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditProfileScreen(
-                      currentName: _userName,
-                      currentBio: _userBio,
-                      currentAvatarUrl: _avatarUrl,
-                    ),
+                // Show confirmation dialog
+                final shouldLogout = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Logout'),
+                    content: const Text('Are you sure you want to logout?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Logout',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
                   ),
                 );
 
-                // If profile was updated, reload data
-                if (result != null && mounted) {
-                  setState(() {
-                    if (result['name'] != null) {
-                      _userName = result['name'];
-                    }
-                    if (result['bio'] != null) {
-                      _userBio = result['bio'];
-                    }
-                    if (result.containsKey('avatar_url')) {
-                      _avatarUrl = result['avatar_url'];
-                    }
-                  });
-                }
-              },
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit Profile'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colorScheme.primary,
-                side: BorderSide(color: colorScheme.primary),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-            _buildSectionTitle('My Projects', textTheme),
-            const SizedBox(height: 12),
-            _isLoading
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                : _userProjects.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32.0),
-                      child: Text("You haven't posted any projects yet."),
-                    ),
-                  )
-                : GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ),
-                    itemCount: _userProjects.length,
-                    itemBuilder: (context, index) {
-                      final project = _userProjects[index];
-                      final type = project['type'] as String;
+                if (shouldLogout == true && mounted) {
+                  try {
+                    // Sign out from Supabase
+                    await _supabase.auth.signOut();
 
-                      return GestureDetector(
-                        onTap: () {
-                          if (type == 'tutorial') {
-                            final tutorial = project['data'] as Tutorial;
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TutorialDetailScreen(
-                                  tutorial: tutorial,
-                                  allPosts: widget.allPosts,
-                                  currentUserName: widget.userName,
-                                ),
-                              ),
-                            );
-                          } else {
-                            final post = project['data'] as GalleryPost;
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => GalleryDetailScreen(
-                                  post: post,
-                                  allPosts: widget.allPosts,
-                                  currentUserName: widget.userName,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              // Display image based on type
-                              type == 'tutorial'
-                                  ? Image.network(
-                                      (project['data'] as Tutorial).imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                                color: Colors.grey.shade300,
-                                                child: const Icon(
-                                                  Icons.video_library,
-                                                ),
-                                              ),
-                                    )
-                                  : Image.network(
-                                      (project['data'] as GalleryPost).imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                                color: Colors.grey.shade300,
-                                                child: const Icon(Icons.image),
-                                              ),
-                                    ),
-                              // Video icon overlay for tutorials
-                              if (type == 'tutorial')
-                                Positioned(
-                                  bottom: 4,
-                                  right: 4,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.6),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Icon(
-                                      Icons.play_arrow,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
+                    // Navigate to login screen and remove all previous routes
+                    if (mounted) {
+                      Navigator.of(
+                        context,
+                      ).pushNamedAndRemoveUntil('/login', (route) => false);
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error logging out: $e'),
+                          backgroundColor: Colors.red,
                         ),
                       );
-                    },
-                  ),
-          ],
+                    }
+                  }
+                }
+              },
+              icon: const Icon(Icons.logout),
+              color: Colors.red,
+              tooltip: 'Logout',
+              iconSize: 28,
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 

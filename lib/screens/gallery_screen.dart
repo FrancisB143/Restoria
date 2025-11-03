@@ -293,15 +293,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
   }
 
   Widget _buildCombinedGallery(BuildContext context) {
-    // Combine database posts with sample posts
-    // Database posts come first (newest), then sample posts
-    final allPosts = <dynamic>[];
-
-    // Add database posts first (these are real user posts from Supabase)
-    allPosts.addAll(_databasePosts);
-
-    // Add sample posts (static examples for demonstration)
-    allPosts.addAll(_getSamplePostsData());
+    // Show only database posts (real user posts from Supabase)
+    final allPosts = _databasePosts;
 
     if (allPosts.isEmpty) {
       return const Padding(
@@ -322,14 +315,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       itemCount: allPosts.length,
       itemBuilder: (context, index) {
         final post = allPosts[index];
-
-        // Check if it's a GalleryPost (from database) or sample data (Map)
-        if (post is GalleryPost) {
-          return _buildCommunityPost(context, post, index);
-        } else if (post is Map<String, dynamic>) {
-          return _buildSampleCommunityPost(context, post, index);
-        }
-        return const SizedBox.shrink();
+        return _buildCommunityPost(context, post, index);
       },
     );
   }
@@ -964,8 +950,17 @@ class _GalleryScreenState extends State<GalleryScreen> {
       if (widget.onAddPost != null) {
         widget.onAddPost!(result);
       }
-      // Reload database posts to show the new post
+      // Reload database posts to show the new post immediately
       await _loadGalleryPosts();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Post created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 

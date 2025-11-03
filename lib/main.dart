@@ -14,13 +14,15 @@ import 'config/supabase_config.dart'; // Import Supabase config
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase with auth callback handling
+  // Initialize Supabase with auth callback handling and deep links
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
     ),
+    // Deep link configuration for OAuth callbacks
+    debug: true,
   );
 
   runApp(const MyApp());
@@ -44,6 +46,11 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _loadTutorials();
     _ensureUserProfileExists();
+
+    // Listen for auth state changes globally
+    _supabase.auth.onAuthStateChange.listen((data) {
+      print('Global auth state changed: ${data.event}');
+    });
   }
 
   Future<void> _ensureUserProfileExists() async {
@@ -70,6 +77,7 @@ class _MyAppState extends State<MyApp> {
           'id': user.id,
           'name': userName,
           'email': userEmail,
+          'bio': '', // Empty bio by default
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
@@ -81,6 +89,32 @@ class _MyAppState extends State<MyApp> {
       }
     } catch (e) {
       print('Error ensuring user profile exists: $e');
+    }
+  }
+
+  Future<void> _createMissingProfile(String userId) async {
+    try {
+      print('Attempting to create profile for missing user: $userId');
+
+      // Try to fetch user data from auth.users (admin only) or use default
+      String userName = 'User';
+      String userEmail = '';
+
+      // Since we can't access other users' auth data, create a basic profile
+      // The user can update it later when they log in
+      await _supabase.from('profiles').insert({
+        'id': userId,
+        'name': userName,
+        'email': userEmail,
+        'bio': '',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      print('Successfully created profile for user: $userId');
+    } catch (e) {
+      print('Error creating missing profile for $userId: $e');
+      // Profile might already exist or there's an RLS issue
     }
   }
 
@@ -103,51 +137,63 @@ class _MyAppState extends State<MyApp> {
             'Loading tutorial: ${json['title']} by user_id: ${json['user_id']}',
           );
 
-          try {
-            final profileResponse = await _supabase
-                .from('profiles')
-                .select('name, avatar_url')
-                .eq('id', json['user_id'])
-                .maybeSingle();
-
-            print('Profile response for ${json['user_id']}: $profileResponse');
-
-            if (profileResponse != null) {
-              creatorName =
-                  profileResponse['name'] as String? ?? 'Unknown User';
-              print('Creator name found: $creatorName');
-              // Check if avatar_url exists in response
-              if (profileResponse.containsKey('avatar_url')) {
-                creatorAvatarUrl =
-                    profileResponse['avatar_url'] as String? ??
-                    'assets/images/avatar1.png';
-                print('Avatar URL found: $creatorAvatarUrl');
-              }
-            } else {
-              print('No profile found for user_id: ${json['user_id']}');
-            }
-          } catch (profileError) {
-            print(
-              'Error fetching profile for tutorial ${json['id']}: $profileError',
-            );
-            // Try fetching just name if avatar_url doesn't exist
+          if (json['user_id'] != null) {
             try {
-              final nameOnlyResponse = await _supabase
+              // First try to get just the name
+              final profileResponse = await _supabase
                   .from('profiles')
                   .select('name')
                   .eq('id', json['user_id'])
-                  .maybeSingle();
+                  .maybeSingle(); // Changed back to maybeSingle to handle missing profiles
 
-              if (nameOnlyResponse != null) {
-                creatorName =
-                    nameOnlyResponse['name'] as String? ?? 'Unknown User';
-                print('Creator name found (name only): $creatorName');
-              }
-            } catch (nameError) {
               print(
-                'Error fetching name for tutorial ${json['id']}: $nameError',
+                'Profile response for ${json['user_id']}: $profileResponse',
+              );
+
+              if (profileResponse != null && profileResponse['name'] != null) {
+                creatorName = profileResponse['name'] as String;
+                print('Creator name found: $creatorName');
+              } else {
+                print(
+                  'Profile not found for user ${json['user_id']}, attempting to create from auth data...',
+                );
+                // Try to create profile from auth data if it doesn't exist
+                await _createMissingProfile(json['user_id'] as String);
+                // Try fetching again after creation
+                final retryResponse = await _supabase
+                    .from('profiles')
+                    .select('name')
+                    .eq('id', json['user_id'])
+                    .maybeSingle();
+                if (retryResponse != null && retryResponse['name'] != null) {
+                  creatorName = retryResponse['name'] as String;
+                }
+              }
+
+              // Try to get avatar_url separately if it exists
+              try {
+                final avatarResponse = await _supabase
+                    .from('profiles')
+                    .select('avatar_url')
+                    .eq('id', json['user_id'])
+                    .maybeSingle();
+
+                if (avatarResponse != null &&
+                    avatarResponse['avatar_url'] != null) {
+                  creatorAvatarUrl = avatarResponse['avatar_url'] as String;
+                  print('Avatar URL found: $creatorAvatarUrl');
+                }
+              } catch (avatarError) {
+                print('Avatar URL fetch error: $avatarError');
+                // Keep default avatar
+              }
+            } catch (profileError) {
+              print(
+                'Error fetching profile for user ${json['user_id']}: $profileError',
               );
             }
+          } else {
+            print('Tutorial has null user_id');
           }
 
           loadedTutorials.add(

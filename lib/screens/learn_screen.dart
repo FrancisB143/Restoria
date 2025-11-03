@@ -29,7 +29,10 @@ class LearnScreen extends StatefulWidget {
 
 class _LearnScreenState extends State<LearnScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final _supabase = Supabase.instance.client;
   late List<Tutorial> _filteredTutorials;
+  List<Tutorial> _allTutorials = []; // Store all tutorials from database
+  bool _isLoadingTutorials = true;
   String _selectedCategory = 'All';
   String _selectedCategoryDisplay = 'All';
 
@@ -38,6 +41,95 @@ class _LearnScreenState extends State<LearnScreen> {
     super.initState();
     _filteredTutorials = widget.tutorials;
     _searchController.addListener(_applyFilters);
+    _loadAllTutorials(); // Load from database on init
+  }
+
+  Future<void> _loadAllTutorials() async {
+    try {
+      setState(() => _isLoadingTutorials = true);
+
+      final response = await _supabase
+          .from('tutorials')
+          .select('*')
+          .order('created_at', ascending: false);
+
+      List<Tutorial> loadedTutorials = [];
+
+      for (var json in response as List) {
+        String creatorName = 'Unknown User';
+        String creatorAvatarUrl = 'assets/images/avatar1.png';
+
+        print(
+          'Loading tutorial: ${json['title']} by user_id: ${json['user_id']}',
+        );
+
+        if (json['user_id'] != null) {
+          try {
+            // First try to get just the name
+            final profileResponse = await _supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', json['user_id'])
+                .maybeSingle(); // Changed to maybeSingle to handle missing profiles
+
+            print('Profile response for ${json['user_id']}: $profileResponse');
+
+            if (profileResponse != null && profileResponse['name'] != null) {
+              creatorName = profileResponse['name'] as String;
+              print('Creator name found: $creatorName');
+
+              // Try to get avatar_url separately if it exists
+              try {
+                final avatarResponse = await _supabase
+                    .from('profiles')
+                    .select('avatar_url')
+                    .eq('id', json['user_id'])
+                    .maybeSingle();
+
+                if (avatarResponse != null &&
+                    avatarResponse['avatar_url'] != null) {
+                  creatorAvatarUrl = avatarResponse['avatar_url'] as String;
+                }
+              } catch (avatarError) {
+                print('Avatar URL fetch error: $avatarError');
+                // Keep default avatar
+              }
+            } else {
+              print('Profile not found for user ${json['user_id']}');
+            }
+          } catch (e) {
+            print('Error fetching profile for user ${json['user_id']}: $e');
+          }
+        } else {
+          print('Tutorial has null user_id');
+        }
+
+        loadedTutorials.add(
+          Tutorial.fromJson({
+            ...json,
+            'creator_name': creatorName,
+            'creator_avatar_url': creatorAvatarUrl,
+          }),
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _allTutorials = loadedTutorials;
+          _isLoadingTutorials = false;
+        });
+        _applyFilters();
+      }
+    } catch (e) {
+      debugPrint('Error loading tutorials: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingTutorials = false;
+          _allTutorials = widget.tutorials; // Fallback to passed tutorials
+        });
+        _applyFilters();
+      }
+    }
   }
 
   @override
@@ -58,7 +150,7 @@ class _LearnScreenState extends State<LearnScreen> {
   void _applyFilters() {
     final searchQuery = _searchController.text.toLowerCase();
     setState(() {
-      _filteredTutorials = widget.tutorials.where((tutorial) {
+      _filteredTutorials = _allTutorials.where((tutorial) {
         final titleMatch = tutorial.title.toLowerCase().contains(searchQuery);
         final categoryMatch =
             _selectedCategory == 'All' ||
@@ -561,33 +653,46 @@ class _LearnScreenState extends State<LearnScreen> {
         comments: [],
       );
 
-      // Close loading dialog
-      Navigator.pop(context);
+      // Close loading dialog if mounted
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
 
-      // Close the upload modal
-      Navigator.pop(context);
+      // Close the upload modal if mounted
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
 
       // Add to parent (this will refresh the main list)
       widget.onAddTutorial(newTutorial);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Tutorial "$title" uploaded successfully!'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } catch (e) {
-      // Close loading dialog
-      Navigator.pop(context);
+      // Reload tutorials from database to show the new one
+      await _loadAllTutorials();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to upload tutorial: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tutorial "$title" uploaded successfully!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if mounted
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload tutorial: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 
@@ -702,8 +807,8 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   int _getTutorialCountByCategory(String category) {
-    if (category == 'All') return widget.tutorials.length;
-    return widget.tutorials
+    if (category == 'All') return _allTutorials.length;
+    return _allTutorials
         .where((tutorial) => tutorial.eWasteType == category)
         .length;
   }
@@ -1242,15 +1347,33 @@ class _LearnScreenState extends State<LearnScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _filteredTutorials.take(5).length,
-                  itemBuilder: (context, index) {
-                    final tutorial = _filteredTutorials[index];
-                    return _buildFeaturedTutorialCard(context, tutorial);
-                  },
-                ),
+                if (_isLoadingTutorials)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                else if (_filteredTutorials.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: Text(
+                        'No tutorials found. Be the first to upload!',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _filteredTutorials.take(5).length,
+                    itemBuilder: (context, index) {
+                      final tutorial = _filteredTutorials[index];
+                      return _buildFeaturedTutorialCard(context, tutorial);
+                    },
+                  ),
               ],
             ),
           ),

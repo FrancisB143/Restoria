@@ -57,37 +57,108 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Sign up the user with email confirmation disabled and user metadata
+      // Sign up the user without email confirmation
       final response = await _supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         data: {'name': _nameController.text.trim()},
+        emailRedirectTo: null, // Disable email confirmation redirect
       );
 
       if (!mounted) return;
 
       if (response.user != null) {
-        // Create profile in database
+        print('User created: ${response.user!.id}');
+
+        // Check if profile already exists first
+        try {
+          final existingProfile = await _supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', response.user!.id)
+              .maybeSingle();
+
+          if (existingProfile != null) {
+            print('Profile already exists for this user');
+            // Profile already exists, just sign out and redirect to login
+            await _supabase.auth.signOut();
+
+            // Wait for sign out to complete
+            await Future.delayed(const Duration(milliseconds: 500));
+
+            if (!mounted) return;
+            _showSuccess('Account already exists. Please login to continue.');
+
+            // Wait for message to show
+            await Future.delayed(const Duration(seconds: 2));
+
+            if (!mounted) return;
+
+            // Use Navigator.pushNamedAndRemoveUntil to clear the entire stack
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/login',
+              (route) => false, // Remove all previous routes
+            );
+            return;
+          }
+        } catch (e) {
+          print('Error checking existing profile: $e');
+        }
+
+        // Create profile in database immediately with empty bio
         try {
           await _supabase.from('profiles').insert({
             'id': response.user!.id,
             'name': _nameController.text.trim(),
             'email': _emailController.text.trim(),
+            'bio': '', // Empty bio - user will fill it later
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           });
+
+          print('Profile created successfully with empty bio');
+
+          if (!mounted) return;
+
+          // Sign out the user so they need to login
+          await _supabase.auth.signOut();
+
+          // Add a small delay to ensure sign-out completes
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (!mounted) return;
+
+          // Registration successful - navigate to login screen
+          _showSuccess('Registration successful! Please login to continue.');
+
+          await Future.delayed(const Duration(seconds: 2));
+          if (!mounted) return;
+
+          // Use Navigator.pushNamedAndRemoveUntil to clear the entire stack
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/login',
+            (route) => false, // Remove all previous routes
+          );
         } catch (profileError) {
           print('Error creating profile: $profileError');
-          // Continue anyway - user can set up profile later
+
+          // Profile creation failed - delete the auth user and show error
+          try {
+            await _supabase.auth.signOut();
+          } catch (e) {
+            print('Error signing out: $e');
+          }
+
+          if (!mounted) return;
+          _showError(
+            'Profile creation failed. Please try again with a different email.',
+          );
+          return; // Stop here
         }
-
-        // Registration successful
-        _showSuccess('Registration successful! You can now login.');
-
-        // Wait a bit then navigate to login
-        await Future.delayed(const Duration(seconds: 2));
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        _showError('Registration failed. Please try again.');
       }
     } on AuthException catch (e) {
       _showError(e.message);
