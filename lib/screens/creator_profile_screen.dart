@@ -512,6 +512,14 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                         flex: 3,
                         child: ElevatedButton.icon(
                           onPressed: () {
+                            if (widget.creatorUserId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Unable to start conversation'),
+                                ),
+                              );
+                              return;
+                            }
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -519,6 +527,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                                   otherUserName: widget.userName,
                                   otherUserAvatarUrl:
                                       'https://i.pravatar.cc/150?u=${widget.userName.hashCode}',
+                                  otherUserId: widget.creatorUserId!,
                                 ),
                               ),
                             );

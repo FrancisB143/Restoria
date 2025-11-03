@@ -1,15 +1,18 @@
 // lib/screens/conversation_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ConversationScreen extends StatefulWidget {
   final String otherUserName;
   final String otherUserAvatarUrl;
+  final String otherUserId;
 
   const ConversationScreen({
     super.key,
     required this.otherUserName,
     required this.otherUserAvatarUrl,
+    required this.otherUserId,
   });
 
   @override
@@ -19,85 +22,111 @@ class ConversationScreen extends StatefulWidget {
 class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final _supabase = Supabase.instance.client;
   final List<Message> _messages = [];
+  String? _conversationId;
+  bool _isLoading = true;
+  bool _isSending = false;
 
   @override
   void initState() {
     super.initState();
-    _loadInitialMessages();
+    _loadConversation();
   }
 
-  void _loadInitialMessages() {
-    // Sample conversation
-    _messages.addAll([
-      Message(
-        text: "Hi! I saw your upcycled lamp tutorial. It's amazing!",
-        isFromCurrentUser: true,
-        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      Message(
-        text: "Thank you so much! I'm glad you liked it 😊",
-        isFromCurrentUser: false,
-        timestamp: DateTime.now().subtract(
-          const Duration(hours: 2, minutes: 30),
-        ),
-      ),
-      Message(
-        text:
-            "Do you sell custom pieces? I have some old electronics I'd love to turn into art.",
-        isFromCurrentUser: true,
-        timestamp: DateTime.now().subtract(
-          const Duration(hours: 1, minutes: 45),
-        ),
-      ),
-      Message(
-        text: "Yes! I do custom work. What kind of electronics do you have?",
-        isFromCurrentUser: false,
-        timestamp: DateTime.now().subtract(
-          const Duration(hours: 1, minutes: 30),
-        ),
-      ),
-      Message(
-        text:
-            "I have an old radio and some computer parts. Would love to see what you can create!",
-        isFromCurrentUser: true,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
-      ),
-    ]);
-  }
+  Future<void> _loadConversation() async {
+    try {
+      setState(() => _isLoading = true);
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) return;
 
-    setState(() {
-      _messages.add(
-        Message(
-          text: _messageController.text.trim(),
-          isFromCurrentUser: true,
-          timestamp: DateTime.now(),
-        ),
+      // Get or create conversation
+      final result = await _supabase.rpc(
+        'get_or_create_conversation',
+        params: {'user1_id': currentUserId, 'user2_id': widget.otherUserId},
       );
-    });
 
+      _conversationId = result as String;
+
+      // Load existing messages
+      final messagesResponse = await _supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', _conversationId!)
+          .order('created_at', ascending: true);
+
+      if (mounted) {
+        setState(() {
+          _messages.clear();
+          for (final msg in messagesResponse) {
+            _messages.add(
+              Message(
+                text: msg['content'] as String,
+                isFromCurrentUser: msg['sender_id'] == currentUserId,
+                timestamp: DateTime.parse(msg['created_at']),
+              ),
+            );
+          }
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading conversation: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    if (_messageController.text.trim().isEmpty ||
+        _isSending ||
+        _conversationId == null)
+      return;
+
+    final messageText = _messageController.text.trim();
     _messageController.clear();
-    _scrollToBottom();
 
-    // Simulate reply after a delay
-    Future.delayed(const Duration(seconds: 2), () {
+    setState(() => _isSending = true);
+
+    try {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      // Add message to database
+      await _supabase.from('messages').insert({
+        'conversation_id': _conversationId,
+        'sender_id': currentUserId,
+        'content': messageText,
+      });
+
+      // Add message to local list
       if (mounted) {
         setState(() {
           _messages.add(
             Message(
-              text:
-                  "That sounds interesting! I'd love to work on a project with those pieces.",
-              isFromCurrentUser: false,
+              text: messageText,
+              isFromCurrentUser: true,
               timestamp: DateTime.now(),
             ),
           );
+          _isSending = false;
         });
         _scrollToBottom();
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSending = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error sending message: $e')));
+        _messageController.text = messageText; // Restore the message
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -155,15 +184,48 @@ class _ConversationScreenState extends State<ConversationScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageBubble(message, colorScheme, textTheme);
-              },
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _messages.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 80,
+                          color: colorScheme.outline,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Start the conversation!',
+                          style: textTheme.headlineSmall?.copyWith(
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Send your first message below',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      return _buildMessageBubble(
+                        message,
+                        colorScheme,
+                        textTheme,
+                      );
+                    },
+                  ),
           ),
           _buildMessageInput(colorScheme),
         ],
@@ -270,12 +332,23 @@ class _ConversationScreenState extends State<ConversationScreen> {
           const SizedBox(width: 8),
           Container(
             decoration: BoxDecoration(
-              color: colorScheme.primary,
+              color: _isSending ? colorScheme.outline : colorScheme.primary,
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: Icon(Icons.send, color: colorScheme.onPrimary),
-              onPressed: _sendMessage,
+              icon: _isSending
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          colorScheme.onPrimary,
+                        ),
+                      ),
+                    )
+                  : Icon(Icons.send, color: colorScheme.onPrimary),
+              onPressed: _isSending ? null : _sendMessage,
             ),
           ),
         ],
