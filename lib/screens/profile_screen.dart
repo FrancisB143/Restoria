@@ -5,6 +5,7 @@ import '../models/tutorial_model.dart';
 import 'gallery_detail_screen.dart';
 import 'tutorial_detail_screen.dart';
 import 'edit_profile_screen.dart';
+import 'admin_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userName;
@@ -24,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _supabase = Supabase.instance.client;
   List<dynamic> _userProjects = [];
   bool _isLoading = true;
+  bool _isAdmin = false;
   String _userName = '';
   String _userBio =
       'Turning e-waste into e-wonderful! ♻️✨ Creator and seller of unique upcycled art.';
@@ -55,12 +57,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final profileResponse = await _supabase
             .from('profiles')
-            .select('name, avatar_url, bio')
+            .select('name, avatar_url, bio, is_admin')
             .eq('id', user.id)
             .single();
 
         userName = profileResponse['name'] as String? ?? widget.userName;
         bio = profileResponse['bio'] as String? ?? bio;
+        _isAdmin = profileResponse['is_admin'] == true;
         if (profileResponse.containsKey('avatar_url') &&
             profileResponse['avatar_url'] != null) {
           avatarUrl = profileResponse['avatar_url'] as String;
@@ -371,6 +374,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
+        // Admin button (if user is admin)
+        if (_isAdmin)
+          Positioned(
+            top: 8,
+            right: 60,
+            child: SafeArea(
+              child: IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.admin_panel_settings),
+                color: Colors.orange,
+                tooltip: 'Admin Panel',
+                iconSize: 28,
+              ),
+            ),
+          ),
         // Logout button in upper right corner
         Positioned(
           top: 8,
