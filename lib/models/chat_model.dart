@@ -8,6 +8,7 @@ class Chat {
   final bool isGroup;
   final bool isOnline;
   final bool hasUnreadMessages;
+  final int unreadCount;
   final String? otherUserId; // The other user's ID for navigation
 
   Chat({
@@ -18,6 +19,7 @@ class Chat {
     this.isGroup = false,
     this.isOnline = false,
     this.hasUnreadMessages = false,
+    this.unreadCount = 0,
     this.otherUserId,
   });
 }

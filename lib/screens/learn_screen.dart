@@ -5,7 +5,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
+import '../services/likes_comments_service.dart';
 import 'tutorial_detail_screen.dart';
+import 'community_content_screen.dart';
 
 class LearnScreen extends StatefulWidget {
   final List<Tutorial> tutorials;
@@ -30,6 +32,7 @@ class LearnScreen extends StatefulWidget {
 class _LearnScreenState extends State<LearnScreen> {
   final TextEditingController _searchController = TextEditingController();
   final _supabase = Supabase.instance.client;
+  final _likesCommentsService = LikesCommentsService();
   late List<Tutorial> _filteredTutorials;
   List<Tutorial> _allTutorials = []; // Store all tutorials from database
   bool _isLoadingTutorials = true;
@@ -149,13 +152,17 @@ class _LearnScreenState extends State<LearnScreen> {
 
   void _applyFilters() {
     final searchQuery = _searchController.text.toLowerCase();
+    final currentUserId = _supabase.auth.currentUser?.id;
+
     setState(() {
       _filteredTutorials = _allTutorials.where((tutorial) {
+        // Exclude current user's own posts
+        final isNotOwnPost = tutorial.userId != currentUserId;
         final titleMatch = tutorial.title.toLowerCase().contains(searchQuery);
         final categoryMatch =
             _selectedCategory == 'All' ||
             tutorial.eWasteType == _selectedCategory;
-        return titleMatch && categoryMatch;
+        return isNotOwnPost && titleMatch && categoryMatch;
       }).toList();
     });
   }
@@ -807,8 +814,13 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   int _getTutorialCountByCategory(String category) {
-    if (category == 'All') return _allTutorials.length;
-    return _allTutorials
+    final currentUserId = _supabase.auth.currentUser?.id;
+    final filteredByUser = _allTutorials.where(
+      (tutorial) => tutorial.userId != currentUserId,
+    );
+
+    if (category == 'All') return filteredByUser.length;
+    return filteredByUser
         .where((tutorial) => tutorial.eWasteType == category)
         .length;
   }
@@ -832,8 +844,8 @@ class _LearnScreenState extends State<LearnScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => TutorialDetailScreen(
@@ -843,6 +855,8 @@ class _LearnScreenState extends State<LearnScreen> {
                 ),
               ),
             );
+            // Reload tutorials when returning from detail screen
+            _loadAllTutorials();
           },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -952,19 +966,97 @@ class _LearnScreenState extends State<LearnScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Rating
+                        // Like and Comment counts
                         Row(
                           children: [
-                            Icon(Icons.star, size: 16, color: Colors.amber),
-                            const SizedBox(width: 4),
-                            Text(
-                              '4.8',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                            // Like button with tap handler
+                            GestureDetector(
+                              onTap: () async {
+                                if (tutorial.id != null) {
+                                  final userId = _supabase.auth.currentUser?.id;
+                                  if (userId != null) {
+                                    // Toggle like in database
+                                    await _likesCommentsService
+                                        .toggleTutorialLike(
+                                          tutorial.id!,
+                                          userId,
+                                        );
+                                    // Refresh the tutorials list to update the count
+                                    setState(() {
+                                      _loadAllTutorials();
+                                    });
+                                  }
+                                }
+                              },
+                              child: Row(
+                                children: [
+                                  FutureBuilder<bool>(
+                                    future: tutorial.id != null
+                                        ? _likesCommentsService.isTutorialLiked(
+                                            tutorial.id!,
+                                            _supabase.auth.currentUser?.id ??
+                                                '',
+                                          )
+                                        : Future.value(false),
+                                    builder: (context, snapshot) {
+                                      final isLiked = snapshot.data ?? false;
+                                      return Icon(
+                                        isLiked
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        size: 16,
+                                        color: isLiked
+                                            ? Colors.red
+                                            : Colors.grey.shade600,
+                                      );
+                                    },
                                   ),
+                                  const SizedBox(width: 4),
+                                  FutureBuilder<int>(
+                                    future: tutorial.id != null
+                                        ? _likesCommentsService
+                                              .getTutorialLikeCount(
+                                                tutorial.id!,
+                                              )
+                                        : Future.value(tutorial.likeCount),
+                                    builder: (context, snapshot) {
+                                      return Text(
+                                        '${snapshot.data ?? tutorial.likeCount}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Colors.grey.shade600,
+                                              fontSize: 14,
+                                            ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.comment_outlined,
+                              size: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            FutureBuilder<int>(
+                              future: tutorial.id != null
+                                  ? _likesCommentsService
+                                        .getTutorialCommentCount(tutorial.id!)
+                                  : Future.value(0),
+                              builder: (context, snapshot) {
+                                return Text(
+                                  '${snapshot.data ?? 0}',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 14,
+                                      ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -1338,7 +1430,17 @@ class _LearnScreenState extends State<LearnScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CommunityContentScreen(
+                              contentType: 'tutorials',
+                              currentUserName: widget.currentUserName,
+                            ),
+                          ),
+                        );
+                      },
                       child: Text(
                         'See All',
                         style: TextStyle(color: Colors.green.shade600),

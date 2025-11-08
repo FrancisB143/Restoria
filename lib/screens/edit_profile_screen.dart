@@ -107,8 +107,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final fileExt = 'jpg';
       final fileName =
-          '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      final filePath = 'avatars/$fileName';
+          '${DateTime.now().millisecondsSinceEpoch}_avatar.$fileExt';
+      // IMPORTANT: Path must be {user_id}/filename for RLS policies to work
+      final filePath = '${user.id}/$fileName';
 
       debugPrint('Upload path: $filePath');
       debugPrint('Attempting direct upload to profile-avatars bucket...');

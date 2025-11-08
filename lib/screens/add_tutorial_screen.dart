@@ -73,25 +73,29 @@ class _AddTutorialScreenState extends State<AddTutorialScreen> {
 
       if (video != null) {
         final file = File(video.path);
-        
+
         // Check file size (limit to 50MB)
         final fileSize = await file.length();
         const maxSizeInBytes = 50 * 1024 * 1024; // 50MB in bytes
-        
+
         if (fileSize > maxSizeInBytes) {
-          _showError('Video file size must be less than 50MB. Your video is ${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB');
+          _showError(
+            'Video file size must be less than 50MB. Your video is ${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB',
+          );
           return;
         }
-        
+
         // Check video duration using video_player
         // Note: For more accurate duration check, you'd need video_player package
         // For now, we'll rely on the picker's maxDuration parameter
-        
+
         setState(() {
           _selectedVideo = file;
           _videoFileName = video.name;
         });
-        _showSuccess('Video selected successfully! (${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB)');
+        _showSuccess(
+          'Video selected successfully! (${(fileSize / (1024 * 1024)).toStringAsFixed(1)}MB)',
+        );
       }
     } catch (e) {
       _showError('Failed to pick video: $e');

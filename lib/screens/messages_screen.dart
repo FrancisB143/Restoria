@@ -51,7 +51,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       // Query conversations where current user is a participant
       final conversationsResponse = await _supabase
           .from('conversations')
-          .select('*, messages(content, created_at, sender_id)')
+          .select('*, messages(content, created_at, sender_id, is_read)')
           .or(
             'participant1_id.eq.$currentUserId,participant2_id.eq.$currentUserId',
           )
@@ -81,6 +81,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         String lastMessage = 'No messages yet';
         String time = '';
         bool hasUnreadMessages = false;
+        int unreadCount = 0;
 
         if (messages != null && messages.isNotEmpty) {
           // Sort messages by created_at to get the latest
@@ -95,10 +96,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
           final lastMsgTime = DateTime.parse(lastMsg['created_at']);
           time = _formatTime(lastMsgTime);
 
-          // Check if there are unread messages (messages from other user)
-          hasUnreadMessages = messages.any(
-            (msg) => msg['sender_id'] != currentUserId,
-          );
+          // Check if there are unread messages (messages from other user that are not read)
+          unreadCount = messages.where((msg) {
+            return msg['sender_id'] != currentUserId && msg['is_read'] == false;
+          }).length;
+
+          hasUnreadMessages = unreadCount > 0;
         }
 
         chats.add(
@@ -112,6 +115,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             isGroup: false,
             isOnline: false, // You can add online status later with presence
             hasUnreadMessages: hasUnreadMessages,
+            unreadCount: unreadCount,
             otherUserId: otherUserId, // Store this for navigation
           ),
         );
@@ -290,7 +294,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             CircleAvatar(
                               radius: 28,
                               backgroundColor: Colors.grey.shade200,
-                              backgroundImage: AssetImage(chat.avatarAsset),
+                              backgroundImage:
+                                  chat.avatarAsset.startsWith('http')
+                                  ? NetworkImage(chat.avatarAsset)
+                                        as ImageProvider
+                                  : AssetImage(chat.avatarAsset),
+                              child:
+                                  chat.avatarAsset.isEmpty ||
+                                      (!chat.avatarAsset.startsWith('http') &&
+                                          !chat.avatarAsset.startsWith(
+                                            'assets/',
+                                          ))
+                                  ? Text(
+                                      chat.name[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : null,
                             ),
                             // Online status indicator for individual users
                             if (!chat.isGroup && chat.isOnline)
@@ -412,7 +435,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (chat.hasUnreadMessages)
+                            if (chat.hasUnreadMessages && chat.unreadCount > 0)
                               Container(
                                 width: 20,
                                 height: 20,
@@ -422,7 +445,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    '1',
+                                    chat.unreadCount > 9
+                                        ? '9+'
+                                        : '${chat.unreadCount}',
                                     style: TextStyle(
                                       color: Theme.of(
                                         context,
@@ -440,8 +465,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ),
                           ],
                         ),
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          // Navigate to conversation and reload when returning
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => ConversationScreen(
@@ -451,6 +477,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               ),
                             ),
                           );
+                          // Reload conversations to update read status
+                          _loadConversations();
                         },
                       );
                     },

@@ -3,8 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
+import '../services/likes_comments_service.dart';
 import 'gallery_detail_screen.dart';
 import 'add_gallery_post_screen.dart';
+import 'community_content_screen.dart';
+import 'liked_projects_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
   final List<GalleryPost> posts;
@@ -26,6 +29,7 @@ class GalleryScreen extends StatefulWidget {
 
 class _GalleryScreenState extends State<GalleryScreen> {
   final _supabase = Supabase.instance.client;
+  final _likesCommentsService = LikesCommentsService();
   List<GalleryPost> _databasePosts = [];
   bool _isLoading = true;
 
@@ -39,6 +43,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
     try {
       setState(() => _isLoading = true);
 
+      final currentUserId = _supabase.auth.currentUser?.id;
+
       // Fetch gallery posts from database
       final response = await _supabase
           .from('gallery_posts')
@@ -48,6 +54,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
       final posts = <GalleryPost>[];
 
       for (final post in response) {
+        // Skip current user's posts
+        if (post['user_id'] == currentUserId) {
+          continue;
+        }
+
         try {
           // Fetch user profile for each post
           final profileResponse = await _supabase
@@ -58,6 +69,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
           posts.add(
             GalleryPost(
+              id: post['id'] as String?,
               userId: post['user_id'] as String?,
               userName: profileResponse['name'] ?? 'Anonymous',
               imageUrl: post['image_url'] ?? '',
@@ -80,6 +92,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
             posts.add(
               GalleryPost(
+                id: post['id'] as String?,
                 userId: post['user_id'] as String?,
                 userName: profileResponse['name'] ?? 'Anonymous',
                 imageUrl: post['image_url'] ?? '',
@@ -94,6 +107,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             // If even name fetch fails, use anonymous
             posts.add(
               GalleryPost(
+                id: post['id'] as String?,
                 userId: post['user_id'] as String?,
                 userName: 'Anonymous',
                 imageUrl: post['image_url'] ?? '',
@@ -256,11 +270,33 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ),
 
           // Community Gallery Section
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.0),
-            child: Text(
-              'Community Gallery',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Community Gallery',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CommunityContentScreen(
+                          contentType: 'gallery',
+                          currentUserName: widget.currentUserName,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'See All',
+                    style: TextStyle(color: Colors.green.shade600),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -313,7 +349,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         'imageUrl': 'assets/images/gallery1.jpg',
         'description':
             'Rock your creativity by turning old CDs, cotton balls, and simple materials into a one-of-a-kind guitar art piece! This eco-friendly craft proves that music isn\'t the only thing a guitar can inspire—it can also teach us how to reuse, recycle, and create beauty from waste.',
-        'likeCount': 134,
+        'likeCount': 0,
         'timeAgo': '2 hours ago',
         'avatarColor': Colors.blue,
       },
@@ -323,7 +359,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         'imageUrl': 'assets/images/gallery2.jpg',
         'description':
             'Transform unused keyboard keys into a creative photo frame that gives your memories a sustainable edge! Instead of throwing away broken keyboards, turn them into something meaningful—because every picture deserves a frame as unique as the story it holds.',
-        'likeCount': 97,
+        'likeCount': 0,
         'timeAgo': '5 hours ago',
         'avatarColor': Colors.green,
       },
@@ -333,7 +369,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         'imageUrl': 'assets/images/gallery3.jpg',
         'description':
             'Give your old keyboard a new purpose by turning it into a handy organizer for scissors, pencils, and pens! Instead of ending up as e-waste, it becomes a functional desk accessory that keeps your workspace neat while promoting creativity and sustainability.',
-        'likeCount': 210,
+        'likeCount': 0,
         'timeAgo': '1 day ago',
         'avatarColor': Colors.purple,
       },
@@ -343,7 +379,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         'imageUrl': 'assets/images/gallery4.jpg',
         'description':
             'Another mouse creation. This little guy is watching you! 👀',
-        'likeCount': 76,
+        'likeCount': 0,
         'timeAgo': '2 days ago',
         'avatarColor': Colors.orange,
       },
@@ -353,7 +389,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
         'imageUrl': 'assets/images/gallery5.jpg',
         'description':
             'An old keyboard has been repurposed into a neat desk organizer. No more clutter!',
-        'likeCount': 188,
+        'likeCount': 0,
         'timeAgo': '3 days ago',
         'avatarColor': Colors.teal,
       },
@@ -560,16 +596,21 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         onTap: () {},
                       ),
                       const SizedBox(width: 20),
-                      _buildInteractionButton(
-                        icon: Icons.chat_bubble_outline,
-                        count: _getCommentCount(index),
-                        onTap: () {},
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.share_outlined,
-                        size: 20,
-                        color: Colors.grey[600],
+                      // Use FutureBuilder to fetch comment count
+                      FutureBuilder<int>(
+                        future: post.id != null
+                            ? _likesCommentsService.getGalleryCommentCount(
+                                post.id!,
+                              )
+                            : Future.value(0),
+                        builder: (context, snapshot) {
+                          final commentCount = snapshot.data ?? 0;
+                          return _buildInteractionButton(
+                            icon: Icons.chat_bubble_outline,
+                            count: commentCount,
+                            onTap: () {},
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -666,11 +707,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     // Use userId or userName to get a consistent color for each user
     final hashCode = (userId ?? userName).hashCode;
     return colors[hashCode.abs() % colors.length];
-  }
-
-  int _getCommentCount(int index) {
-    final counts = [5, 12, 8, 3, 15, 7];
-    return counts[index % counts.length];
   }
 
   Widget _buildSampleCommunityPosts(BuildContext context) {
@@ -870,7 +906,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       const SizedBox(width: 20),
                       _buildInteractionButton(
                         icon: Icons.chat_bubble_outline,
-                        count: _getCommentCount(index),
+                        count: 0,
                         onTap: () {},
                       ),
                       const Spacer(),
@@ -982,10 +1018,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
               subtitle: const Text('View your liked creations'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Liked Projects feature coming soon!'),
-                    backgroundColor: Colors.blue,
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LikedProjectsScreen(
+                      currentUserName: widget.currentUserName,
+                    ),
                   ),
                 );
               },

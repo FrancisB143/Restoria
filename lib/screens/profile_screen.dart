@@ -124,12 +124,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         projects.add({
           'type': 'gallery',
           'data': GalleryPost(
+            id: post['id'] as String?,
             userId: post['user_id'],
             userName: userName,
             imageUrl: post['image_url'] ?? '',
             description: post['description'] ?? '',
             likeCount: post['like_count'] ?? 0,
             avatarUrl: avatarUrl,
+            createdAt: post['created_at'] != null
+                ? DateTime.parse(post['created_at'])
+                : null,
           ),
           'created_at': post['created_at'],
         });
@@ -284,10 +288,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           final type = project['type'] as String;
 
                           return GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               if (type == 'tutorial') {
                                 final tutorial = project['data'] as Tutorial;
-                                Navigator.push(
+                                final result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => TutorialDetailScreen(
@@ -297,9 +301,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ),
                                 );
+                                // Reload if item was deleted
+                                if (result == true) {
+                                  _loadUserProjects();
+                                }
                               } else {
                                 final post = project['data'] as GalleryPost;
-                                Navigator.push(
+                                final result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => GalleryDetailScreen(
@@ -309,6 +317,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ),
                                 );
+                                // Reload if item was deleted
+                                if (result == true) {
+                                  _loadUserProjects();
+                                }
                               }
                             },
                             child: ClipRRect(

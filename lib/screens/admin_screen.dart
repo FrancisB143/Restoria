@@ -12,14 +12,15 @@ class AdminScreen extends StatefulWidget {
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
-class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStateMixin {
+class _AdminScreenState extends State<AdminScreen>
+    with SingleTickerProviderStateMixin {
   final _supabase = Supabase.instance.client;
   late TabController _tabController;
-  
+
   List<Tutorial> _tutorials = [];
   List<GalleryPost> _galleryPosts = [];
   List<Map<String, dynamic>> _adminActions = [];
-  
+
   bool _isLoading = true;
   bool _isAdmin = false;
   String? _error;
@@ -124,10 +125,14 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
               if (profileResponse != null) {
                 creatorName = profileResponse['name'] ?? 'Unknown User';
-                creatorAvatarUrl = profileResponse['avatar_url'] ?? 'assets/images/ourLogo.png';
+                creatorAvatarUrl =
+                    profileResponse['avatar_url'] ??
+                    'assets/images/ourLogo.png';
               }
             } catch (profileError) {
-              print('Error fetching profile for tutorial ${item['id']}: $profileError');
+              print(
+                'Error fetching profile for tutorial ${item['id']}: $profileError',
+              );
             }
           }
 
@@ -203,7 +208,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 avatarUrl = profileResponse['avatar_url'];
               }
             } catch (profileError) {
-              print('Error fetching profile for gallery post ${item['id']}: $profileError');
+              print(
+                'Error fetching profile for gallery post ${item['id']}: $profileError',
+              );
             }
           }
 
@@ -278,10 +285,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       });
 
       // Delete tutorial from database
-      await _supabase
-          .from('tutorials')
-          .delete()
-          .eq('id', tutorial.id!);
+      await _supabase.from('tutorials').delete().eq('id', tutorial.id!);
 
       // Reload data
       await _loadTutorials();
@@ -339,10 +343,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         'action_type': 'delete_gallery_post',
         'target_id': postId,
         'target_type': 'gallery_post',
-        'target_title': post.description.isNotEmpty 
-            ? (post.description.length > 50 
-                ? '${post.description.substring(0, 50)}...' 
-                : post.description)
+        'target_title': post.description.isNotEmpty
+            ? (post.description.length > 50
+                  ? '${post.description.substring(0, 50)}...'
+                  : post.description)
             : 'Gallery post',
         'target_creator': post.userName,
         'target_image_url': post.imageUrl,
@@ -350,10 +354,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       });
 
       // Delete gallery post from database
-      await _supabase
-          .from('gallery_posts')
-          .delete()
-          .eq('id', postId);
+      await _supabase.from('gallery_posts').delete().eq('id', postId);
 
       // Reload data
       await _loadGalleryPosts();
@@ -495,9 +496,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   Widget _buildTutorialsTab() {
     if (_tutorials.isEmpty) {
-      return const Center(
-        child: Text('No tutorials found'),
-      );
+      return const Center(child: Text('No tutorials found'));
     }
 
     return RefreshIndicator(
@@ -581,11 +580,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                        const Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _formatDate(tutorial.createdAt!),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -607,9 +613,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   Widget _buildGalleryTab() {
     if (_galleryPosts.isEmpty) {
-      return const Center(
-        child: Text('No gallery posts found'),
-      );
+      return const Center(child: Text('No gallery posts found'));
     }
 
     return RefreshIndicator(
@@ -657,7 +661,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       Expanded(
                         child: Text(
                           post.userName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -668,7 +675,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     const SizedBox(height: 4),
                     Text(
                       post.description,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.normal,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -693,11 +703,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                        const Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _formatDate(post.createdAt!),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -719,9 +736,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   Widget _buildActionsTab() {
     if (_adminActions.isEmpty) {
-      return const Center(
-        child: Text('No admin actions recorded'),
-      );
+      return const Center(child: Text('No admin actions recorded'));
     }
 
     return RefreshIndicator(
@@ -782,12 +797,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 children: [
                   Text(
                     _formatActionType(actionType),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                   if (targetTitle != null)
                     Text(
                       '"$targetTitle"',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -797,8 +818,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 4),
-                  if (targetCreator != null)
-                    Text('Creator: $targetCreator'),
+                  if (targetCreator != null) Text('Creator: $targetCreator'),
                   Text('Admin: $adminName'),
                   if (reason != null && reason.isNotEmpty)
                     Text(

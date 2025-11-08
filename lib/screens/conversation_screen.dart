@@ -27,11 +27,36 @@ class _ConversationScreenState extends State<ConversationScreen> {
   String? _conversationId;
   bool _isLoading = true;
   bool _isSending = false;
+  String? _currentUserAvatarUrl;
+  String _currentUserName = '';
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserProfile();
     _loadConversation();
+  }
+
+  Future<void> _loadCurrentUserProfile() async {
+    try {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      final profileResponse = await _supabase
+          .from('profiles')
+          .select('name, avatar_url')
+          .eq('id', currentUserId)
+          .maybeSingle();
+
+      if (profileResponse != null && mounted) {
+        setState(() {
+          _currentUserName = profileResponse['name'] ?? '';
+          _currentUserAvatarUrl = profileResponse['avatar_url'];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading current user profile: $e');
+    }
   }
 
   Future<void> _loadConversation() async {
@@ -48,6 +73,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
       );
 
       _conversationId = result as String;
+
+      // Mark all unread messages from the other user as read
+      await _supabase
+          .from('messages')
+          .update({'is_read': true})
+          .eq('conversation_id', _conversationId!)
+          .eq('sender_id', widget.otherUserId)
+          .eq('is_read', false);
 
       // Load existing messages
       final messagesResponse = await _supabase
@@ -165,7 +198,23 @@ class _ConversationScreenState extends State<ConversationScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: AssetImage('assets/images/ourLogo.png'),
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage: widget.otherUserAvatarUrl.startsWith('http')
+                  ? NetworkImage(widget.otherUserAvatarUrl) as ImageProvider
+                  : AssetImage(widget.otherUserAvatarUrl),
+              child:
+                  widget.otherUserAvatarUrl.isEmpty ||
+                      (!widget.otherUserAvatarUrl.startsWith('http') &&
+                          !widget.otherUserAvatarUrl.startsWith('assets/'))
+                  ? Text(
+                      widget.otherUserName[0].toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -238,6 +287,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
     ColorScheme colorScheme,
     TextTheme textTheme,
   ) {
+    // Determine which avatar to show
+    final avatarUrl = message.isFromCurrentUser
+        ? _currentUserAvatarUrl
+        : widget.otherUserAvatarUrl;
+    final userName = message.isFromCurrentUser
+        ? _currentUserName
+        : widget.otherUserName;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -248,7 +305,27 @@ class _ConversationScreenState extends State<ConversationScreen> {
           if (!message.isFromCurrentUser) ...[
             CircleAvatar(
               radius: 16,
-              backgroundImage: AssetImage('assets/images/ourLogo.png'),
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage:
+                  (avatarUrl != null && avatarUrl.startsWith('http'))
+                  ? NetworkImage(avatarUrl) as ImageProvider
+                  : (avatarUrl != null && avatarUrl.startsWith('assets/'))
+                  ? AssetImage(avatarUrl)
+                  : null,
+              child:
+                  (avatarUrl == null ||
+                      avatarUrl.isEmpty ||
+                      (!avatarUrl.startsWith('http') &&
+                          !avatarUrl.startsWith('assets/')))
+                  ? Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 8),
           ],
@@ -291,7 +368,27 @@ class _ConversationScreenState extends State<ConversationScreen> {
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 16,
-              backgroundImage: AssetImage('assets/images/avatar1.png'),
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage:
+                  (avatarUrl != null && avatarUrl.startsWith('http'))
+                  ? NetworkImage(avatarUrl) as ImageProvider
+                  : (avatarUrl != null && avatarUrl.startsWith('assets/'))
+                  ? AssetImage(avatarUrl)
+                  : null,
+              child:
+                  (avatarUrl == null ||
+                      avatarUrl.isEmpty ||
+                      (!avatarUrl.startsWith('http') &&
+                          !avatarUrl.startsWith('assets/')))
+                  ? Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    )
+                  : null,
             ),
           ],
         ],

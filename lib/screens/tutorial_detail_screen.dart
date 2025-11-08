@@ -2,8 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/gallery_post_model.dart';
 import '../models/tutorial_model.dart';
+import '../services/likes_comments_service.dart';
 import 'creator_profile_screen.dart';
 
 class TutorialDetailScreen extends StatefulWidget {
@@ -23,16 +25,21 @@ class TutorialDetailScreen extends StatefulWidget {
 }
 
 class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
+  final _supabase = Supabase.instance.client;
+  final _likesCommentsService = LikesCommentsService();
   late VideoPlayerController _videoController;
   late Future<void> _initializeVideoPlayerFuture;
   late int _tutorialLikeCount;
   late bool _isTutorialLiked;
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
-  late List<Comment> _comments;
+  List<Comment> _comments = [];
+  List<Map<String, dynamic>> _dbComments = [];
   Comment? _replyingToComment;
   bool _hasVideoError = false;
   String _videoErrorMessage = '';
+  bool _isLoadingComments = true;
+  bool _isLoadingLikeStatus = true;
 
   @override
   void initState() {
@@ -40,7 +47,8 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
     _initializeVideo();
     _tutorialLikeCount = widget.tutorial.likeCount;
     _isTutorialLiked = false;
-    _comments = widget.tutorial.comments;
+    _loadLikeStatus();
+    _loadComments();
   }
 
   void _initializeVideo() async {
@@ -97,35 +105,177 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
     super.dispose();
   }
 
-  void _toggleTutorialLike() {
-    setState(() {
-      _isTutorialLiked = !_isTutorialLiked;
-      if (_isTutorialLiked) {
-        _tutorialLikeCount++;
-      } else {
-        _tutorialLikeCount--;
+  Future<void> _loadLikeStatus() async {
+    if (widget.tutorial.id == null) return;
+
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {
+        final isLiked = await _likesCommentsService.isTutorialLiked(
+          widget.tutorial.id!,
+          userId,
+        );
+        final likeCount = await _likesCommentsService.getTutorialLikeCount(
+          widget.tutorial.id!,
+        );
+
+        if (mounted) {
+          setState(() {
+            _isTutorialLiked = isLiked;
+            _tutorialLikeCount = likeCount;
+            _isLoadingLikeStatus = false;
+          });
+        }
       }
-    });
+    } catch (e) {
+      print('Error loading like status: $e');
+      if (mounted) {
+        setState(() => _isLoadingLikeStatus = false);
+      }
+    }
+  }
+
+  Future<void> _loadComments() async {
+    if (widget.tutorial.id == null) return;
+
+    try {
+      final comments = await _likesCommentsService.getTutorialComments(
+        widget.tutorial.id!,
+      );
+
+      if (mounted) {
+        // Convert database comments to Comment model
+        final oldComments = comments.map((comment) {
+          final profile = comment['profiles'] as Map<String, dynamic>?;
+          final userName = profile?['name'] ?? 'Anonymous';
+          final avatarUrl = profile?['avatar_url'];
+          final createdAt = DateTime.parse(comment['created_at']);
+          final timeAgo = _formatTimeAgo(createdAt);
+
+          return Comment(
+            userName: userName,
+            avatarAsset: avatarUrl ?? 'assets/images/ourLogo.png',
+            text: comment['content'],
+            timestamp: timeAgo,
+          );
+        }).toList();
+
+        setState(() {
+          _dbComments = comments;
+          _comments = oldComments;
+          _isLoadingComments = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading comments: $e');
+      if (mounted) {
+        setState(() => _isLoadingComments = false);
+      }
+    }
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d';
+    } else {
+      return '${(difference.inDays / 7).floor()}w';
+    }
+  }
+
+  Future<void> _toggleTutorialLike() async {
+    if (widget.tutorial.id == null) return;
+
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to like tutorials')),
+      );
+      return;
+    }
+
+    try {
+      // Optimistically update UI
+      setState(() {
+        if (_isTutorialLiked) {
+          _tutorialLikeCount--;
+          _isTutorialLiked = false;
+        } else {
+          _tutorialLikeCount++;
+          _isTutorialLiked = true;
+        }
+      });
+
+      // Update database
+      await _likesCommentsService.toggleTutorialLike(
+        widget.tutorial.id!,
+        userId,
+      );
+    } catch (e) {
+      print('Error toggling like: $e');
+      // Revert on error
+      setState(() {
+        if (_isTutorialLiked) {
+          _tutorialLikeCount--;
+          _isTutorialLiked = false;
+        } else {
+          _tutorialLikeCount++;
+          _isTutorialLiked = true;
+        }
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to update like')));
+    }
+  }
+
+  Future<void> _addComment() async {
+    if (_commentController.text.trim().isEmpty || widget.tutorial.id == null)
+      return;
+
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please log in to comment')));
+      return;
+    }
+
+    try {
+      await _likesCommentsService.addTutorialComment(
+        widget.tutorial.id!,
+        userId,
+        _commentController.text.trim(),
+      );
+
+      _commentController.clear();
+      _commentFocusNode.unfocus();
+
+      // Reload comments
+      await _loadComments();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Comment added!')));
+    } catch (e) {
+      print('Error adding comment: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to add comment')));
+    }
   }
 
   void _addCommentOrReply() {
-    if (_commentController.text.isEmpty) return;
-    final newComment = Comment(
-      userName: 'You',
-      avatarAsset: 'assets/images/ourLogo.png',
-      text: _commentController.text,
-      timestamp: 'Just now', // <-- Add this line
-    );
-    setState(() {
-      if (_replyingToComment == null) {
-        _comments.insert(0, newComment);
-      } else {
-        _replyingToComment!.replies.insert(0, newComment);
-        _replyingToComment = null;
-      }
-      _commentController.clear();
-      _commentFocusNode.unfocus();
-    });
+    _addComment();
   }
 
   void _startReply(Comment comment) {
@@ -140,6 +290,99 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
       _replyingToComment = null;
       _commentFocusNode.unfocus();
     });
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Tutorial'),
+        content: const Text(
+          'Are you sure you want to delete this tutorial? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              _deleteTutorial();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteTutorial() async {
+    if (widget.tutorial.id == null) return;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Delete from database
+      await _supabase.from('tutorials').delete().eq('id', widget.tutorial.id!);
+
+      // Delete video from storage if it exists
+      if (widget.tutorial.videoUrl.isNotEmpty &&
+          widget.tutorial.videoUrl.contains('tutorial-videos')) {
+        try {
+          final videoPath = Uri.parse(
+            widget.tutorial.videoUrl,
+          ).path.split('/tutorial-videos/').last;
+          await _supabase.storage.from('tutorial-videos').remove([videoPath]);
+        } catch (e) {
+          print('Error deleting video: $e');
+        }
+      }
+
+      // Delete image from storage if it exists
+      if (widget.tutorial.imageUrl.isNotEmpty &&
+          widget.tutorial.imageUrl.contains('tutorial-images')) {
+        try {
+          final imagePath = Uri.parse(
+            widget.tutorial.imageUrl,
+          ).path.split('/tutorial-images/').last;
+          await _supabase.storage.from('tutorial-images').remove([imagePath]);
+        } catch (e) {
+          print('Error deleting image: $e');
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(
+          context,
+          true,
+        ); // Go back to previous screen with success flag
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tutorial deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error deleting tutorial: $e');
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete tutorial: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   String _formatDuration(Duration duration) {
@@ -291,11 +534,39 @@ class _TutorialDetailScreenState extends State<TutorialDetailScreen> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Text(
-                              widget.tutorial.creatorName,
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            Expanded(
+                              child: Text(
+                                widget.tutorial.creatorName,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
                             ),
+                            // Show delete menu only if current user is the creator
+                            if (_supabase.auth.currentUser?.id ==
+                                widget.tutorial.userId)
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) {
+                                  if (value == 'delete') {
+                                    _showDeleteConfirmation();
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Delete',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),

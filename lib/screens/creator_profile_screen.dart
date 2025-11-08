@@ -214,12 +214,16 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         projects.add({
           'type': 'gallery',
           'data': GalleryPost(
+            id: post['id'] as String?,
             userId: post['user_id'],
             userName: widget.userName,
             imageUrl: post['image_url'] ?? '',
             description: post['description'] ?? '',
             likeCount: post['like_count'] ?? 0,
             avatarUrl: _creatorAvatarUrl,
+            createdAt: post['created_at'] != null
+                ? DateTime.parse(post['created_at'])
+                : null,
           ),
           'created_at': post['created_at'],
         });
@@ -622,10 +626,10 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                             final type = project['type'] as String;
 
                             return GestureDetector(
-                              onTap: () {
+                              onTap: () async {
                                 if (type == 'tutorial') {
                                   final tutorial = project['data'] as Tutorial;
-                                  Navigator.push(
+                                  final result = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) =>
@@ -637,9 +641,13 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                                           ),
                                     ),
                                   );
+                                  // Reload if item was deleted
+                                  if (result == true) {
+                                    _loadCreatorProjects();
+                                  }
                                 } else {
                                   final post = project['data'] as GalleryPost;
-                                  Navigator.push(
+                                  final result = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => GalleryDetailScreen(
@@ -649,6 +657,10 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                                       ),
                                     ),
                                   );
+                                  // Reload if item was deleted
+                                  if (result == true) {
+                                    _loadCreatorProjects();
+                                  }
                                 }
                               },
                               child: ClipRRect(

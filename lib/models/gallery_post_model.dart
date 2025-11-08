@@ -1,6 +1,7 @@
 // lib/models/gallery_post_model.dart
 
 class GalleryPost {
+  final String? id; // Database ID for the post
   final String? userId; // User ID of the creator
   final String userName;
   final String imageUrl;
@@ -10,6 +11,7 @@ class GalleryPost {
   final DateTime? createdAt; // Timestamp of when the post was created
 
   GalleryPost({
+    this.id,
     this.userId,
     required this.userName,
     required this.imageUrl,

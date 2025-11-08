@@ -182,45 +182,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Future<void> _handleGoogleSignIn(BuildContext context) async {
-    setState(() => _isLoading = true);
-
-    try {
-      print('Starting Google OAuth sign-in...');
-      // Use the HTTPS deep link that's configured in AndroidManifest
-      final bool result = await _supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'https://wkayjcularwgjctoxzwt.supabase.co/auth/v1/callback',
-        authScreenLaunchMode: LaunchMode.externalApplication,
-      );
-
-      print('OAuth result: $result');
-
-      if (!result) {
-        if (mounted) {
-          _showError('Google sign-in was cancelled');
-        }
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // The auth state listener will handle the navigation
-      // Don't set loading to false here, let the auth success handler do it
-    } on AuthException catch (e) {
-      print('Auth exception: ${e.message}');
-      if (mounted) {
-        _showError(e.message);
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      print('Error during Google sign-in: $e');
-      if (mounted) {
-        _showError('Google sign-in failed: $e');
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -415,83 +376,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                             ),
 
-                            SizedBox(height: isSmallScreen ? 10 : 14),
-
-                            // Divider
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Divider(color: Colors.grey[300]),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  child: Text(
-                                    'or',
-                                    style: TextStyle(
-                                      color: Colors.grey[500],
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: isSmallScreen ? 12 : 13,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Divider(color: Colors.grey[300]),
-                                ),
-                              ],
-                            ),
-
-                            SizedBox(height: isSmallScreen ? 10 : 14),
-
-                            // Google Sign In Button
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.08),
-                                    spreadRadius: 0,
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: ElevatedButton.icon(
-                                icon: Image.asset(
-                                  'assets/images/google_logo.png',
-                                  height: isSmallScreen ? 16.0 : 18.0,
-                                  width: isSmallScreen ? 16.0 : 18.0,
-                                ),
-                                label: Text(
-                                  'Continue with Google',
-                                  style: TextStyle(
-                                    fontSize: isSmallScreen ? 13 : 15,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.grey[700],
-                                  elevation: 0,
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: isSmallScreen ? 12 : 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
-                                      color: Colors.grey.shade200,
-                                    ),
-                                  ),
-                                  textStyle: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: isSmallScreen ? 13 : 15,
-                                  ),
-                                ),
-                                onPressed: () => _handleGoogleSignIn(context),
-                              ),
-                            ),
-
-                            SizedBox(height: isSmallScreen ? 10 : 14),
+                            SizedBox(height: isSmallScreen ? 14 : 20),
 
                             // Register Button
                             GestureDetector(
@@ -512,20 +397,17 @@ class _LoginScreenState extends State<LoginScreen>
                             SizedBox(height: isSmallScreen ? 10 : 14),
 
                             // Footer Text
-                            Padding(
-                              padding: EdgeInsets.only(
-                                bottom: isSmallScreen ? 8 : 16,
-                              ),
-                              child: Text(
-                                'By continuing, you agree to our Terms of Service\nand Privacy Policy',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.grey[500],
-                                  height: 1.3,
-                                  fontSize: isSmallScreen ? 10 : 12,
-                                ),
+                            Text(
+                              'By continuing, you agree to our Terms of Service\nand Privacy Policy',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                height: 1.3,
+                                fontSize: isSmallScreen ? 10 : 12,
                               ),
                             ),
+
+                            SizedBox(height: isSmallScreen ? 12 : 16),
                           ],
                         ),
                       ),
